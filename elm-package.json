@@ -1,0 +1,16 @@
+{
+    "version": "1.0.0",
+    "summary": "A 2D arcade game",
+    "repository": "https://github.com/ziagrosvenor/star-shapes.git",
+    "license": "Unlicence",
+    "source-directories": [
+        "."
+    ],
+    "exposed-modules": [],
+    "dependencies": {
+        "elm-lang/core": "2.1.0 <= v < 4.0.0",
+        "evancz/elm-http": "3.0.0 <= v < 4.0.0",
+        "mgold/elm-socketio": "2.0.3 <= v < 3.0.0"
+    },
+    "elm-version": "0.16.0 <= v < 0.17.0"
+}
