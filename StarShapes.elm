@@ -4,10 +4,10 @@ import Color exposing (..)
 import Graphics.Collage exposing (..)
 import Graphics.Element exposing (..)
 import Keyboard
+import Debug
 import Time exposing (..)
 import Window
 import Result
-import Http
 import Task exposing (Task, andThen)
 import Random
 import Text
@@ -15,6 +15,7 @@ import Json.Encode as Encode
 import Json.Decode exposing ((:=))
 import List exposing (..)
 import SocketIO exposing (io, defaultOptions, emit, on)
+import Enemies exposing (..)
 
 -- MODEL
 
@@ -46,33 +47,6 @@ vecLen (x, y) = sqrt(x * x + y * y)
 vecSub : Vec -> Vec -> Vec
 vecSub (ax, ay) (bx, by) = (ax - bx, ay - by)
 
-getEnemyColor : Float -> Color
-getEnemyColor x =
-  if x <= 8 then
-    lightGreen
-  else if x <= 16 then
-    lightBlue
-  else if x <= 24 then
-    green
-  else if x <= 32 then
-    blue
-  else if x <= 40 then
-    lightOrange
-  else if x <= 48 then
-    lightRed
-  else if x <= 56 then
-    orange
-  else
-    red
-
-getRandomX : Random.Seed -> (Float, Random.Seed)
-getRandomX seed =
-  Random.generate (Random.float -(areaW / 2) (areaW / 2)) seed
-
-getRandomY : Random.Seed -> (Float, Random.Seed)
-getRandomY seed =
-  Random.generate (Random.float -(areaH / 2) (areaH / 2)) seed
-
 type alias Model =
   { x : Float
   , y : Float
@@ -81,22 +55,6 @@ type alias Model =
   , rad: Float
   , color: Color
   }
-
-type alias Position = {
-  x: Float,
-  y: Float
- }
-
-type alias Enemy = {
-  model: Model,
-  startPos: Position,
-  endPos: Position
-}
-
-type alias Enemies = {
-  enemies: List Enemy,
-  seed: Random.Seed
-}
 
 textStyle = { typeface = [ "roboto", "sans-serif" ]
             , height   = Just 24
@@ -117,24 +75,6 @@ opponent : Model
 opponent  =
   Model 0 0 0 0 40 opponentColor
 
-enemiesState = {
-  enemies = [
-    {
-      model = Model 50 50 0 0 10 yellow,
-      startPos = {
-        x = 20,
-        y = 20
-        },
-        endPos = {
-          x = 0,
-          y = 0
-        }
-      }
-      ],
-
-  seed = Random.initialSeed 20
- }
-
 type alias Game = {
   hero: Model,
   opponent: Model,
@@ -153,42 +93,6 @@ game = {
   backgroundPos = (areaW, areaH)
  }
 
-getEnemies : Int -> (Float, Float) -> Enemies -> Enemies
-getEnemies numEnemies size enemiesState =
-    (foldl (\x {seed, enemies} ->
-      let
-        (randomStartX, firstSeed) = getRandomX seed
-        (randomStartY, secondSeed) = getRandomY firstSeed
-        (randomEndX, thirdSeed) = getRandomX secondSeed
-        (randomEndY, forthSeed) = getRandomY thirdSeed
-
-        (minSize, maxSize) = size
-        (randomRad, fifthSeed) = Random.generate (Random.float minSize maxSize) forthSeed
-
-        enemyColor = getEnemyColor randomRad
-
-        nextEnemies = append enemies [
-          {
-            model = Model randomStartX randomStartY 0 0 randomRad enemyColor,
-            startPos = {
-              x = randomStartX,
-              y = randomStartY
-            },
-            endPos = {
-              x = randomEndX,
-              y = randomEndY
-            }
-          }
-        ]
-
-      in
-        {
-          enemies = nextEnemies,
-          seed = fifthSeed
-        }
-
-     ) enemiesState (repeat numEnemies ""))
-
 -- UPDATE
 
 update : ( Time, { x : Int, y : Int }, { x : Int, y : Int } ) -> Game -> Game
@@ -198,27 +102,6 @@ update (timeDelta, direction, opponentDir) game =
     |> newVelocity direction opponentDir
     |> updatePosition timeDelta
     |> detectCollision
-
-updateEnemies : Game -> Game
-updateEnemies game =
-  let
-    {enemiesState, hero} = game
-
-    newEnemies = if length enemiesState.enemies >= 5 then
-      enemiesState
-    else
-      (getEnemies 30 (4, hero.rad + 2.5) enemiesState)
-
-    nextEnemiesState = if length enemiesState.enemies >= 5 then
-      enemiesState
-    else
-      newEnemies
-  in
-    {
-      game |
-        enemiesState = nextEnemiesState
-    }
-
 
 newVelocity : { x:Int, y:Int } -> { x:Int, y:Int } -> Game -> Game
 newVelocity {x,y} opp game =
@@ -246,47 +129,25 @@ newVelocity {x,y} opp game =
           }
       }
 
-
-updateEnemyPos : Time -> Enemy -> Enemy
-updateEnemyPos dt {model, startPos, endPos} = 
+updateEnemies : Game -> Game
+updateEnemies game =
   let
-    enemySpeed = 170
-    {x, y, vx, vy, rad, color} = model
+    {enemiesState, hero} = game
 
-    newX = if x == areaW / 2 then
-      clamp (-areaW/2) (areaW/2) ((x - (areaW/ 1.01)) + dt * vx)
-    else if x == -(areaW / 2) then
-      clamp (-areaW/2) (areaW/2) ((x + (areaW/ 1.01)) + dt * vx)
-    else if startPos.x < endPos.x then
-      clamp (-areaW/2) (areaW/2) (x + ((endPos.x - startPos.x) / enemySpeed) + dt * vx)
+    newEnemies = if length enemiesState.enemies >= 5 then
+      enemiesState
     else
-      clamp (-areaW/2) (areaW/2) (x + ((startPos.x - endPos.x) / enemySpeed) + dt * vx)
+      (getEnemies 30 (4, hero.rad + 2.5) enemiesState)
 
-
-    newY = if y == areaH / 2 then
-      clamp (-areaH/2) (areaH/2) ((y - (areaH/ 1.02)) + dt * vy)
-    else if y == -(areaH / 2) then
-      clamp (-areaH/2) (areaH/2) ((y + (areaH/ 1.02)) + dt * vy)
-    else if startPos.y < endPos.y then
-      clamp (-areaH/2) (areaH/2) (y + ((endPos.y - startPos.y) / enemySpeed) + dt * vy)
+    nextEnemiesState = if length enemiesState.enemies >= 5 then
+      enemiesState
     else
-      clamp (-areaH/2) (areaH/2) (y + ((startPos.y - endPos.y) / enemySpeed) + dt * vy)
-
-    newStartPos = if x == areaW / 2 then
-      endPos
-     else
-       startPos
-
-    newEndPos = if x == areaW / 2 then
-      startPos
-     else
-       endPos
+      newEnemies
 
   in
     {
-      model = Model newX newY vx vy rad color,
-      endPos = newEndPos,
-      startPos = newStartPos
+      game |
+        enemiesState = nextEnemiesState
     }
 
 updateHeroPos : Time -> Model -> Model
@@ -333,9 +194,10 @@ updatePosition dt game =
         }
     }
 
+getListOfCollidingEnemies : Model -> List Enemy -> List Enemy
 getListOfCollidingEnemies hero enemies =
-  filter (\{model} ->
-    (model.rad > hero.rad) && ((vecLen <| vecSub (hero.x, hero.y) (model.x, model.y)) < hero.rad + model.rad)
+  filter (\{x, y, rad} ->
+    (rad > hero.rad) && ((vecLen <| vecSub (hero.x, hero.y) (x, y)) < hero.rad + rad)
   ) enemies
 
 isPlayerCollided player enemies =
@@ -347,9 +209,9 @@ detectCollision game =
     {enemiesState, score, hero} = game
     {enemies} = enemiesState
 
-    enemiesToReturn = filter (\{model} ->
-      if (hero.rad > model.rad) then
-        (vecLen <| vecSub (hero.x, hero.y) (model.x, model.y)) > hero.rad + model.rad
+    enemiesToReturn = filter (\{x, y, rad} ->
+      if (hero.rad > rad) then
+        (vecLen <| vecSub (hero.x, hero.y) (x, y)) > hero.rad + rad
       else
         True
     ) enemies
@@ -370,7 +232,6 @@ detectCollision game =
               enemies = enemiesToReturn
           }
       }
-
 
 -- VIEW
 
@@ -401,20 +262,20 @@ view (w,h) {hero, opponent, enemiesState, score, backgroundPos} =
     opponentForm = circle opponent.rad |> outlined (dottedOpponentLine) |> move (opponent.x, opponent.y)
     opponentName = text (Text.style textStyle (Text.fromString "P2")) |> move (opponent.x, opponent.y)
 
-    enemyForms = map (\{model} ->
+    enemyForms = map (\{color, rad, x, y} ->
       let
         dottedEnemyLine = {
           dottedHeroLine |
-            color = model.color,
+            color = color,
             width = 12
         }
 
-        enemyForm = if hero.rad > model.rad then
-          (square model.rad |> outlined (solid model.color) |> move (model.x, model.y))
+        enemyForm = if hero.rad > rad then
+          (square rad |> outlined (solid color) |> move (x, y))
         else
           group [
-            (circle model.rad |> outlined dottedEnemyLine |> move (model.x, model.y)),
-            text (Text.style textStyle (Text.fromString "Alien")) |> move (model.x, model.y)
+            (circle rad |> outlined dottedEnemyLine |> move (x, y)),
+            text (Text.style textStyle (Text.fromString "Alien")) |> move (x, y)
           ]
 
       in
