@@ -13,7 +13,8 @@ var corsOptions = {
 };
 
 app.use(cors(corsOptions))
-app.use(express.static(__dirname + '/'));
+app.use(express.static(__dirname + '/public/'));
+
 var http = require('http').Server(app)
 var io = require("socket.io")(http)
 
@@ -38,7 +39,7 @@ function id() {
 }
 
 app.get('/', function(request, response) {
-  fs.readFile(__dirname + "/index.html", "utf8",  function(err, file) {
+  fs.readFile(__dirname + "/public/index.html", "utf8",  function(err, file) {
     console.log(err)
     response.send(file)
   })
