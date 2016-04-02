@@ -16,11 +16,10 @@ import Json.Decode exposing ((:=))
 import List exposing (..)
 import SocketIO exposing (io, defaultOptions, emit, on)
 import Enemies exposing (..)
+import Movement exposing (..)
+import Config exposing (..)
 
 -- MODEL
-
-areaW = 960
-areaH = 508
 
 responses =
   Signal.mailbox "{x: 0, y: 0}"
@@ -37,7 +36,7 @@ positionData =
 
 type alias Vec = (Float, Float)
 
-socket = io "http://localhost:3009" defaultOptions
+socket = io serverUrl defaultOptions
 port response : Task String () 
 port response = socket `andThen` on "OPPONENT_UPDATE" responses.address
 
@@ -155,17 +154,13 @@ updateHeroPos dt hero =
   let
     {x, y, vx, vy} = hero
 
-    updatedX = if x == areaW / 2 then
-      clamp (-areaW/2) (areaW/2) ((x - (areaW/ 1.01)) + dt * vx)
-    else if x == -(areaW / 2) then
-      clamp (-areaW/2) (areaW/2) ((x + (areaW/ 1.01)) + dt * vx)
+    updatedX = if (isAtBorder areaW x) then
+      invertPosition dt areaW vx x
     else
       clamp (-areaW/2) (areaW/2) (x + dt * vx)
 
-    updatedY = if y == areaH / 2 then
-      clamp (-areaH/2) (areaH/2) ((y - (areaH/ 1.02)) + dt * vy)
-    else if y == -(areaH / 2) then
-      clamp (-areaH/2) (areaH/2) ((y + (areaH/ 1.02)) + dt * vy)
+    updatedY = if (isAtBorder areaH y) then
+      invertPosition dt areaH vy y
     else
       clamp (-areaH/2) (areaH/2) (y + dt * vy)
   in
@@ -253,7 +248,7 @@ view (w,h) {hero, opponent, enemiesState, score, backgroundPos} =
 
     (bgX, bgY) = backgroundPos
 
-    background = toForm (image areaW areaH "http://media.indiedb.com/images/articles/1/152/151754/auto/stars.png")
+    background = toForm (image areaW areaH backgroundImageUrl)
     isPlayerCollidedWithEnemy = isPlayerCollided hero enemies
 
     heroForm = circle hero.rad |> outlined (dottedHeroLine) |> move (hero.x, hero.y)

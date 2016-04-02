@@ -4,9 +4,7 @@ import Time exposing (Time)
 import List exposing (..)
 import Color exposing (..)
 import Movement exposing (..)
-
-areaW = 960
-areaH = 508
+import Config exposing (..)
 
 type alias Enemy = {
     x: Float
@@ -102,26 +100,15 @@ getEnemies numEnemies size enemiesState =
 updateEnemyPos : Time -> Enemy -> Enemy
 updateEnemyPos dt {x, y, rad, color, startPos, endPos} = 
   let
-    enemySpeed = 170
-
-    newX = if x == areaW / 2 then
-      clamp (-areaW/2) (areaW/2) ((x - (areaW/ 1.01)) + dt * 0)
-    else if x == -(areaW / 2) then
-      clamp (-areaW/2) (areaW/2) ((x + (areaW/ 1.01)) + dt * 0)
-    else if startPos.x < endPos.x then
-      clamp (-areaW/1) (areaW/2) (x + ((endPos.x - startPos.x) / enemySpeed) + dt * 0)
+    newX = if (isAtBorder areaW x) then
+      invertPosition dt areaW 0 x
     else
-      clamp (-areaW/2) (areaW/2) (x + ((startPos.x - endPos.x) / enemySpeed) + dt * 0)
+      moveItem enemySpeed dt areaW (endPos.x, startPos.x) 0 x
 
-
-    newY = if y == areaH / 2 then
-      clamp (-areaH/2) (areaH/2) ((y - (areaH/ 1.02)) + dt * 0)
-    else if y == -(areaH / 2) then
-      clamp (-areaH/2) (areaH/2) ((y + (areaH/ 1.02)) + dt * 0)
-    else if startPos.y < endPos.y then
-      clamp (-areaH/2) (areaH/2) (y + ((endPos.y - startPos.y) / enemySpeed) + dt * 0)
+    newY = if (isAtBorder areaH y) then
+      invertPosition dt areaH 0 y
     else
-      clamp (-areaH/2) (areaH/2) (y + ((startPos.y - endPos.y) / enemySpeed) + dt * 0)
+      moveItem enemySpeed dt areaH (endPos.y, startPos.x) 0 y
 
     newStartPos = if x == areaW / 2 then
       endPos
