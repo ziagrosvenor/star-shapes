@@ -264,9 +264,11 @@ view (w,h) {hero, opponent, enemiesState, score, backgroundPos} =
             color = color,
             width = 12
         }
+        rock = toForm (image (round rad) (round rad) rockImageUrl)
 
         enemyForm = if hero.rad > rad then
-          (square rad |> outlined (solid color) |> move (x, y))
+          -- (square rad |> outlined (solid color) |> move (x, y)) --
+          rock |> move (x, y)
         else
           group [
             (circle rad |> outlined dottedEnemyLine |> move (x, y)),
