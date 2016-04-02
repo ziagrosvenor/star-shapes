@@ -1,0 +1,27 @@
+Elm.Movement = Elm.Movement || {};
+Elm.Movement.make = function (_elm) {
+   "use strict";
+   _elm.Movement = _elm.Movement || {};
+   if (_elm.Movement.values) return _elm.Movement.values;
+   var _U = Elm.Native.Utils.make(_elm),
+   $Basics = Elm.Basics.make(_elm),
+   $Debug = Elm.Debug.make(_elm),
+   $List = Elm.List.make(_elm),
+   $Maybe = Elm.Maybe.make(_elm),
+   $Result = Elm.Result.make(_elm),
+   $Signal = Elm.Signal.make(_elm);
+   var _op = {};
+   var moveItem = F6(function (speed,dt,axis,_p0,velocity,position) {
+      var _p1 = _p0;
+      var _p3 = _p1._0;
+      var _p2 = _p1._1;
+      var increment = _U.cmp(_p3,_p2) < 0 ? _p2 - _p3 : _p3 - _p2;
+      return A3($Basics.clamp,(0 - axis) / 2,axis / 2,position + increment / speed + dt * velocity);
+   });
+   var isAtBorder = F2(function (axis,position) {    return _U.eq(position,axis / 2) || _U.eq(position,0 - axis / 2);});
+   var invertPosition = F4(function (dt,axis,velocity,position) {
+      var newPosition = _U.eq(position,axis / 2) ? position - axis / 1.01 : position + axis / 1.01;
+      return A3($Basics.clamp,(0 - axis) / 2,axis / 2,newPosition + dt * velocity);
+   });
+   return _elm.Movement.values = {_op: _op,invertPosition: invertPosition,isAtBorder: isAtBorder,moveItem: moveItem};
+};

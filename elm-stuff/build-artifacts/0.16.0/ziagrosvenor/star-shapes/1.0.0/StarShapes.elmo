@@ -1,0 +1,249 @@
+Elm.StarShapes = Elm.StarShapes || {};
+Elm.StarShapes.make = function (_elm) {
+   "use strict";
+   _elm.StarShapes = _elm.StarShapes || {};
+   if (_elm.StarShapes.values) return _elm.StarShapes.values;
+   var _U = Elm.Native.Utils.make(_elm),
+   $Basics = Elm.Basics.make(_elm),
+   $Color = Elm.Color.make(_elm),
+   $Config = Elm.Config.make(_elm),
+   $Debug = Elm.Debug.make(_elm),
+   $Enemies = Elm.Enemies.make(_elm),
+   $Graphics$Collage = Elm.Graphics.Collage.make(_elm),
+   $Graphics$Element = Elm.Graphics.Element.make(_elm),
+   $Json$Decode = Elm.Json.Decode.make(_elm),
+   $Json$Encode = Elm.Json.Encode.make(_elm),
+   $Keyboard = Elm.Keyboard.make(_elm),
+   $List = Elm.List.make(_elm),
+   $Maybe = Elm.Maybe.make(_elm),
+   $Movement = Elm.Movement.make(_elm),
+   $Random = Elm.Random.make(_elm),
+   $Result = Elm.Result.make(_elm),
+   $Signal = Elm.Signal.make(_elm),
+   $SocketIO = Elm.SocketIO.make(_elm),
+   $Task = Elm.Task.make(_elm),
+   $Text = Elm.Text.make(_elm),
+   $Time = Elm.Time.make(_elm),
+   $Window = Elm.Window.make(_elm);
+   var _op = {};
+   var encodeKeyboard = function (_p0) {
+      var _p1 = _p0;
+      return A2($Json$Encode.encode,
+      0,
+      $Json$Encode.object(_U.list([{ctor: "_Tuple2",_0: "x",_1: $Json$Encode.$int(_p1.x)},{ctor: "_Tuple2",_0: "y",_1: $Json$Encode.$int(_p1.y)}])));
+   };
+   var delta = A2($Signal.map,function (t) {    return t / 20;},$Time.fps(60));
+   var updateHeroPos = F2(function (dt,hero) {
+      var _p2 = hero;
+      var x = _p2.x;
+      var y = _p2.y;
+      var vx = _p2.vx;
+      var vy = _p2.vy;
+      var updatedX = A2($Movement.isAtBorder,$Config.areaW,x) ? A4($Movement.invertPosition,dt,$Config.areaW,vx,x) : A3($Basics.clamp,
+      (0 - $Config.areaW) / 2,
+      $Config.areaW / 2,
+      x + dt * vx);
+      var updatedY = A2($Movement.isAtBorder,$Config.areaH,y) ? A4($Movement.invertPosition,dt,$Config.areaH,vy,y) : A3($Basics.clamp,
+      (0 - $Config.areaH) / 2,
+      $Config.areaH / 2,
+      y + dt * vy);
+      return _U.update(hero,{x: updatedX,y: updatedY});
+   });
+   var updatePosition = F2(function (dt,game) {
+      var _p3 = game;
+      var hero = _p3.hero;
+      var enemiesState = _p3.enemiesState;
+      var opponent = _p3.opponent;
+      var updatedEnemies = A2($List.map,$Enemies.updateEnemyPos(dt),enemiesState.enemies);
+      var updatedHero = A2(updateHeroPos,dt,hero);
+      var updatedOpponent = A2(updateHeroPos,dt,opponent);
+      return _U.update(game,{hero: updatedHero,opponent: updatedOpponent,enemiesState: _U.update(enemiesState,{enemies: updatedEnemies})});
+   });
+   var updateEnemies = function (game) {
+      var _p4 = game;
+      var enemiesState = _p4.enemiesState;
+      var hero = _p4.hero;
+      var newEnemies = _U.cmp($List.length(enemiesState.enemies),5) > -1 ? enemiesState : A3($Enemies.getEnemies,
+      30,
+      {ctor: "_Tuple2",_0: 4,_1: hero.rad + 2.5},
+      enemiesState);
+      var nextEnemiesState = _U.cmp($List.length(enemiesState.enemies),5) > -1 ? enemiesState : newEnemies;
+      return _U.update(game,{enemiesState: nextEnemiesState});
+   };
+   var newVelocity = F3(function (_p5,opp,game) {
+      var _p6 = _p5;
+      var _p9 = _p6.y;
+      var _p8 = _p6.x;
+      var _p7 = game;
+      var hero = _p7.hero;
+      var opponent = _p7.opponent;
+      var scale = 10;
+      var newVel = function (n) {    return _U.eq(_p8,0) || _U.eq(_p9,0) ? scale * $Basics.toFloat(n) : scale * $Basics.toFloat(n) / $Basics.sqrt(2);};
+      return _U.update(game,{opponent: _U.update(opponent,{vx: newVel(opp.x),vy: newVel(opp.y)}),hero: _U.update(hero,{vx: newVel(_p8),vy: newVel(_p9)})});
+   });
+   var Game = F6(function (a,b,c,d,e,f) {    return {hero: a,opponent: b,enemiesState: c,score: d,seed: e,backgroundPos: f};});
+   var opponentColor = $Color.purple;
+   var heroColor = $Color.white;
+   var textStyle = {typeface: _U.list(["roboto","sans-serif"]),height: $Maybe.Just(24),color: $Color.white,bold: true,italic: false,line: $Maybe.Nothing};
+   var Model = F6(function (a,b,c,d,e,f) {    return {x: a,y: b,vx: c,vy: d,rad: e,color: f};});
+   var hero = A6(Model,0,0,0,0,40,heroColor);
+   var opponent = A6(Model,0,0,0,0,40,opponentColor);
+   var game = {opponent: opponent
+              ,hero: hero
+              ,enemiesState: A3($Enemies.getEnemies,10,{ctor: "_Tuple2",_0: 4,_1: 30},$Enemies.enemiesState)
+              ,score: 0
+              ,seed: $Random.initialSeed(3)
+              ,backgroundPos: {ctor: "_Tuple2",_0: $Config.areaW,_1: $Config.areaH}};
+   var vecSub = F2(function (_p11,_p10) {    var _p12 = _p11;var _p13 = _p10;return {ctor: "_Tuple2",_0: _p12._0 - _p13._0,_1: _p12._1 - _p13._1};});
+   var vecLen = function (_p14) {    var _p15 = _p14;var _p17 = _p15._1;var _p16 = _p15._0;return $Basics.sqrt(_p16 * _p16 + _p17 * _p17);};
+   var getListOfCollidingEnemies = F2(function (hero,enemies) {
+      return A2($List.filter,
+      function (_p18) {
+         var _p19 = _p18;
+         var _p20 = _p19.rad;
+         return _U.cmp(_p20,hero.rad) > 0 && _U.cmp(vecLen(A2(vecSub,{ctor: "_Tuple2",_0: hero.x,_1: hero.y},{ctor: "_Tuple2",_0: _p19.x,_1: _p19.y})),
+         hero.rad + _p20) < 0;
+      },
+      enemies);
+   });
+   var isPlayerCollided = F2(function (player,enemies) {    return _U.cmp($List.length(A2(getListOfCollidingEnemies,player,enemies)),0) > 0;});
+   var view = F2(function (_p22,_p21) {
+      var _p23 = _p22;
+      var _p24 = _p21;
+      var _p33 = _p24.opponent;
+      var _p32 = _p24.hero;
+      var solidChar = $Graphics$Collage.dotted($Color.charcoal);
+      var lineStyle = _U.update(solidChar,{width: 9});
+      var pathForm = A2($Graphics$Collage.traced,
+      lineStyle,
+      $Graphics$Collage.path(_U.list([{ctor: "_Tuple2",_0: -140,_1: -140},{ctor: "_Tuple2",_0: -200,_1: 60},{ctor: "_Tuple2",_0: -40,_1: 100}])));
+      var textScore = A2($Graphics$Collage.move,
+      {ctor: "_Tuple2",_0: 65 - $Config.areaW / 2,_1: 30 - $Config.areaH / 2},
+      $Graphics$Collage.text(A2($Text.style,textStyle,$Text.fromString(A2($Basics._op["++"],"Score ",$Basics.toString(_p24.score))))));
+      var opponentName = A2($Graphics$Collage.move,
+      {ctor: "_Tuple2",_0: _p33.x,_1: _p33.y},
+      $Graphics$Collage.text(A2($Text.style,textStyle,$Text.fromString("P2"))));
+      var heroName = A2($Graphics$Collage.move,
+      {ctor: "_Tuple2",_0: _p32.x,_1: _p32.y},
+      $Graphics$Collage.text(A2($Text.style,textStyle,$Text.fromString("ME"))));
+      var background = $Graphics$Collage.toForm(A3($Graphics$Element.image,$Config.areaW,$Config.areaH,$Config.backgroundImageUrl));
+      var _p25 = _p24.backgroundPos;
+      var bgX = _p25._0;
+      var bgY = _p25._1;
+      var opponentLineColor = $Graphics$Collage.dotted(_p33.color);
+      var dottedOpponentLine = _U.update(opponentLineColor,{width: 4});
+      var opponentForm = A2($Graphics$Collage.move,
+      {ctor: "_Tuple2",_0: _p33.x,_1: _p33.y},
+      A2($Graphics$Collage.outlined,dottedOpponentLine,$Graphics$Collage.circle(_p33.rad)));
+      var heroLineColor = $Graphics$Collage.dotted(_p32.color);
+      var dottedHeroLine = _U.update(heroLineColor,{width: 4});
+      var heroForm = A2($Graphics$Collage.move,
+      {ctor: "_Tuple2",_0: _p32.x,_1: _p32.y},
+      A2($Graphics$Collage.outlined,dottedHeroLine,$Graphics$Collage.circle(_p32.rad)));
+      var _p26 = _p24.enemiesState;
+      var enemies = _p26.enemies;
+      var isPlayerCollidedWithEnemy = A2(isPlayerCollided,_p32,enemies);
+      var enemyForms = A2($List.map,
+      function (_p27) {
+         var _p28 = _p27;
+         var _p31 = _p28.y;
+         var _p30 = _p28.x;
+         var _p29 = _p28.rad;
+         var rock = $Graphics$Collage.toForm(A3($Graphics$Element.image,$Basics.round(_p29),$Basics.round(_p29),$Config.rockImageUrl));
+         var dottedEnemyLine = _U.update(dottedHeroLine,{color: _p28.color,width: 12});
+         var enemyForm = _U.cmp(_p32.rad,_p29) > 0 ? A2($Graphics$Collage.move,
+         {ctor: "_Tuple2",_0: _p30,_1: _p31},
+         rock) : $Graphics$Collage.group(_U.list([A2($Graphics$Collage.move,
+                                                 {ctor: "_Tuple2",_0: _p30,_1: _p31},
+                                                 A2($Graphics$Collage.outlined,dottedEnemyLine,$Graphics$Collage.circle(_p29)))
+                                                 ,A2($Graphics$Collage.move,
+                                                 {ctor: "_Tuple2",_0: _p30,_1: _p31},
+                                                 $Graphics$Collage.text(A2($Text.style,textStyle,$Text.fromString("Alien"))))]));
+         return enemyForm;
+      },
+      enemies);
+      return A4($Graphics$Element.container,
+      _p23._0,
+      _p23._1,
+      $Graphics$Element.middle,
+      A3($Graphics$Collage.collage,
+      $Config.areaW,
+      $Config.areaH,
+      $List.concat(_U.list([_U.list([background,pathForm,opponentForm,opponentName,heroForm,heroName,textScore]),enemyForms]))));
+   });
+   var detectCollision = function (game) {
+      var _p34 = game;
+      var enemiesState = _p34.enemiesState;
+      var score = _p34.score;
+      var hero = _p34.hero;
+      var _p35 = enemiesState;
+      var enemies = _p35.enemies;
+      var enemiesToReturn = A2($List.filter,
+      function (_p36) {
+         var _p37 = _p36;
+         var _p38 = _p37.rad;
+         return _U.cmp(hero.rad,_p38) > 0 ? _U.cmp(vecLen(A2(vecSub,{ctor: "_Tuple2",_0: hero.x,_1: hero.y},{ctor: "_Tuple2",_0: _p37.x,_1: _p37.y})),
+         hero.rad + _p38) > 0 : true;
+      },
+      enemies);
+      var damageAgainstPlayer = A2(getListOfCollidingEnemies,hero,enemiesToReturn);
+      var isCollided = A2(isPlayerCollided,hero,enemies);
+      return _U.update(game,
+      {hero: _U.update(hero,
+      {rad: _U.eq($List.length(enemies),$List.length(enemiesToReturn)) ? hero.rad : hero.rad + 5.0e-2,color: isCollided ? $Color.red : heroColor})
+      ,score: $Basics.toFloat($Basics.floor(score + $Basics.toFloat($List.length(enemies)) - ($Basics.toFloat($List.length(enemiesToReturn)) + $Basics.toFloat($List.length(damageAgainstPlayer)) / 100)))
+      ,enemiesState: _U.update(enemiesState,{enemies: enemiesToReturn})});
+   };
+   var update = F2(function (_p39,game) {
+      var _p40 = _p39;
+      return detectCollision(A2(updatePosition,_p40._0,A3(newVelocity,_p40._1,_p40._2,updateEnemies(game))));
+   });
+   var socket = A2($SocketIO.io,$Config.serverUrl,$SocketIO.defaultOptions);
+   var send = function (x) {    return A2($Task.andThen,socket,A2($SocketIO.emit,"SELF_UPDATE",x));};
+   var playerMove = A2($Signal.map,function (_p41) {    return send(encodeKeyboard(_p41));},$Keyboard.arrows);
+   var outgoing = Elm.Native.Task.make(_elm).performSignal("outgoing",playerMove);
+   var PositionData = F2(function (a,b) {    return {x: a,y: b};});
+   var positionData = A3($Json$Decode.object2,PositionData,A2($Json$Decode._op[":="],"x",$Json$Decode.$int),A2($Json$Decode._op[":="],"y",$Json$Decode.$int));
+   var responses = $Signal.mailbox("{x: 0, y: 0}");
+   var response = Elm.Native.Task.make(_elm).perform(A2($Task.andThen,socket,A2($SocketIO.on,"OPPONENT_UPDATE",responses.address)));
+   var responsesAsObjects = A2($Signal.map,
+   function (response) {
+      return A2($Result.withDefault,{x: 0,y: 0},A2($Json$Decode.decodeString,positionData,response));
+   },
+   responses.signal);
+   var input = A2($Signal.sampleOn,
+   delta,
+   A4($Signal.map3,F3(function (v0,v1,v2) {    return {ctor: "_Tuple3",_0: v0,_1: v1,_2: v2};}),delta,$Keyboard.arrows,responsesAsObjects));
+   var main = A3($Signal.map2,view,$Window.dimensions,A3($Signal.foldp,update,game,input));
+   return _elm.StarShapes.values = {_op: _op
+                                   ,responses: responses
+                                   ,PositionData: PositionData
+                                   ,positionData: positionData
+                                   ,socket: socket
+                                   ,vecLen: vecLen
+                                   ,vecSub: vecSub
+                                   ,Model: Model
+                                   ,textStyle: textStyle
+                                   ,heroColor: heroColor
+                                   ,opponentColor: opponentColor
+                                   ,hero: hero
+                                   ,opponent: opponent
+                                   ,Game: Game
+                                   ,game: game
+                                   ,update: update
+                                   ,newVelocity: newVelocity
+                                   ,updateEnemies: updateEnemies
+                                   ,updateHeroPos: updateHeroPos
+                                   ,updatePosition: updatePosition
+                                   ,getListOfCollidingEnemies: getListOfCollidingEnemies
+                                   ,isPlayerCollided: isPlayerCollided
+                                   ,detectCollision: detectCollision
+                                   ,view: view
+                                   ,main: main
+                                   ,responsesAsObjects: responsesAsObjects
+                                   ,input: input
+                                   ,delta: delta
+                                   ,encodeKeyboard: encodeKeyboard
+                                   ,send: send
+                                   ,playerMove: playerMove};
+};

@@ -1,0 +1,27 @@
+Elm.Config = Elm.Config || {};
+Elm.Config.make = function (_elm) {
+   "use strict";
+   _elm.Config = _elm.Config || {};
+   if (_elm.Config.values) return _elm.Config.values;
+   var _U = Elm.Native.Utils.make(_elm),
+   $Basics = Elm.Basics.make(_elm),
+   $Debug = Elm.Debug.make(_elm),
+   $List = Elm.List.make(_elm),
+   $Maybe = Elm.Maybe.make(_elm),
+   $Result = Elm.Result.make(_elm),
+   $Signal = Elm.Signal.make(_elm);
+   var _op = {};
+   var rockImageUrl = "http://vignette2.wikia.nocookie.net/dumbway2sdie/images/3/3a/Asteroid2.png/revision/latest?cb=20141202091820";
+   var backgroundImageUrl = "http://media.indiedb.com/images/articles/1/152/151754/auto/stars.png";
+   var enemySpeed = 170;
+   var serverUrl = "http://localhost:3009";
+   var areaH = 450;
+   var areaW = 700;
+   return _elm.Config.values = {_op: _op
+                               ,areaW: areaW
+                               ,areaH: areaH
+                               ,serverUrl: serverUrl
+                               ,enemySpeed: enemySpeed
+                               ,backgroundImageUrl: backgroundImageUrl
+                               ,rockImageUrl: rockImageUrl};
+};
