@@ -44,5 +44,4 @@ app.get('/', function(request, response) {
   })
 });
 
-
-http.listen(3009)
+http.listen(process.env.PORT || 3009)
