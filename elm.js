@@ -8876,7 +8876,7 @@ Elm.Config.make = function (_elm) {
    var rockImageUrl = "http://vignette2.wikia.nocookie.net/dumbway2sdie/images/3/3a/Asteroid2.png/revision/latest?cb=20141202091820";
    var backgroundImageUrl = "http://media.indiedb.com/images/articles/1/152/151754/auto/stars.png";
    var enemySpeed = 170;
-   var serverUrl = "http://localhost:3009";
+   var serverUrl = "https://star-shapes.herokuapp.com";
    var areaH = 450;
    var areaW = 700;
    return _elm.Config.values = {_op: _op
