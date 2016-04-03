@@ -192,12 +192,13 @@ isPlayerCollided player enemies =
 detectCollision : Game -> Game
 detectCollision game =
   let
-    {enemiesState, score, hero} = game
+    {enemiesState, score, hero, opponent} = game
     {enemies} = enemiesState
 
     enemiesToReturn = filter (\{x, y, rad} ->
       if (hero.rad > rad) then
-        (vecLen <| vecSub (hero.x, hero.y) (x, y)) > hero.rad + rad
+        ( (vecLen <| vecSub (hero.x, hero.y) (x, y)) > hero.rad + rad  ) &&
+        ( (vecLen <| vecSub (opponent.x, opponent.y) (x, y)) > opponent.rad + rad )
       else
         True
     ) enemies
@@ -211,6 +212,11 @@ detectCollision game =
             hero |
               rad = if length enemies == length enemiesToReturn then hero.rad else hero.rad + 0.05,
               color = if isCollided then red else heroColor
+          },
+          opponent = {
+            opponent |
+              rad = if length enemies == length enemiesToReturn then opponent.rad else opponent.rad + 0.05,
+              color = if isCollided then red else opponentColor
           },
           score = toFloat (floor (score + toFloat((length enemies)) - (toFloat(length enemiesToReturn) + (toFloat(length damageAgainstPlayer) / 100)))),
           enemiesState = {
