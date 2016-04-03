@@ -25,44 +25,29 @@ export function init(clients) {
       return mergeState(
         state,
         dt,
-        safeParse(p1),
-        safeParse(p2)
+        parseWithDefault(state.h, p1),
+        parseWithDefault(state.o, p2)
       )
     },
     [timer, p1], function(state, dt, p1) {
-      var h
-      try {
-        h = JSON.parse(p1)
-      } catch (err) {
-        h = state.h
-        console.log(err)
-      }
-
       return {
         ...state,
         dt,
-        h
+        h: parseWithDefault(state.h, p1)
       }
     },
     [timer, p2], function(state, dt, p2) {
-      var o
-      try {
-        o = JSON.parse(p2)
-      } catch (err) {
-        o = state.o
-        console.log(err)
-      }
-
       return {
         ...state,
         dt,
-        o
+        o: parseWithDefault(state.o, p2)
       }
     },
-    [timer], function(x, y) {
-      var h = x.h || {x:0,y:0}
-      var o = x.o || {x:0,y:0}
-      return {dt: y, h: h, o: o}
+    [timer], function(state, dt) {
+      return {
+        ...state,
+        dt
+      }
     }
   )
   .onValue(function(update) {
@@ -111,11 +96,13 @@ function mergeState(state, dt, h, o) {
   }
 }
 
-function safeParse(json) {
+function parseWithDefault(defaultObj, json) {
+  let parsed = undefined
+
   try {
-    var j = JSON.parse(p1)
+    parsed = JSON.parse(json)
   } catch (err) {console.log(err)}
 
-  return j
+  return parsed || defaultObj
 }
 
