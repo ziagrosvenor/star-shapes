@@ -1,8 +1,21 @@
 var Bacon = require("baconjs")
 
+const initPlayerInput = {
+  x: 0,
+  y: 0
+}
+
+const initState = {
+  dt: 0,
+  h: initPlayerInput,
+  o: initPlayerInput
+}
+
 export function init(clients) {
   const p1 = Bacon.fromEvent(clients[0], "SELF_UPDATE")
+    .map((json) => parseWithDefault(initPlayerInput, json))
   const p2 = Bacon.fromEvent(clients[1], "SELF_UPDATE")
+    .map((json) => parseWithDefault(initPlayerInput, json))
 
   var previousTime = undefined
 
@@ -19,35 +32,26 @@ export function init(clients) {
   })
 
   Bacon.update(
-    {},
-    [timer, p1, p2],
-    function(state, dt, p1, p2) {
-      return mergeState(
-        state,
-        dt,
-        parseWithDefault(state.h, p1),
-        parseWithDefault(state.o, p2)
-      )
+    initState,
+    [timer, p1, p2], function(state, dt, p1, p2) {
+      state.dt = dt
+      state.h = p1
+      state.o  = p2
+      return state
     },
     [timer, p1], function(state, dt, p1) {
-      return {
-        ...state,
-        dt,
-        h: parseWithDefault(state.h, p1)
-      }
+      state.dt = dt
+      state.h = p1
+      return state
     },
     [timer, p2], function(state, dt, p2) {
-      return {
-        ...state,
-        dt,
-        o: parseWithDefault(state.o, p2)
-      }
+      state.dt = dt
+      state.o = p2
+      return state
     },
     [timer], function(state, dt) {
-      return {
-        ...state,
-        dt
-      }
+      state.dt = dt
+      return state
     }
   )
   .onValue(function(update) {
@@ -62,38 +66,6 @@ export function init(clients) {
     })
     return nextUpdate || update
   })
-}
-
-function mergeState(state, dt, h, o) {
-  if (!o && !h) {
-    return {
-      ...state,
-      dt
-    }
-  }
-
-  if (!o) {
-    return {
-      ...state,
-      dt,
-      h
-    }
-  }
-
-  if (!h) {
-    return {
-      ...state,
-      dt,
-      o
-    }
-  }
-
-  return {
-    ...state,
-    dt,
-    h,
-    o
-  }
 }
 
 function parseWithDefault(defaultObj, json) {
