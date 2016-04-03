@@ -35,17 +35,7 @@ getRandomY seed =
 
 getEnemyColor : Float -> Color
 getEnemyColor x =
-  if x <= 8 then
-    lightGreen
-  else if x <= 16 then
-    lightBlue
-  else if x <= 24 then
-    green
-  else if x <= 32 then
-    blue
-  else if x <= 40 then
-    lightOrange
-  else if x <= 48 then
+  if x <= 48 then
     lightRed
   else if x <= 56 then
     orange
