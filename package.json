@@ -4,13 +4,17 @@
   "description": "A 2D arcade style game.",
   "main": "index.js",
   "dependencies": {
+    "baconjs": "^0.7.84",
     "cors": "^2.7.1",
     "express": "^4.13.4",
-    "socket.io": "^1.4.5"
+    "socket.io": "^1.4.5",
+    "babel": "^5.8.21"
   },
   "devDependencies": {},
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "serve-watch": "nodemon ./node_modules/babel/bin/babel-node.js ./index.js",
+    "serve": "node ./node_modules/babel/bin/babel-node.js ./index.js"
   },
   "repository": {
     "type": "git",
