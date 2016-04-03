@@ -65,7 +65,7 @@ export function init(clients) {
       return {dt: y, h: h, o: o}
     }
   )
-  .map(function(update) {
+  .onValue(function(update) {
     try {
       var nextUpdate = JSON.stringify(update)
     } catch (err) {
@@ -77,7 +77,6 @@ export function init(clients) {
     })
     return nextUpdate || update
   })
-  .log()
 }
 
 function mergeState(state, dt, h, o) {
