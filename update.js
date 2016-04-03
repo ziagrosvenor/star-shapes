@@ -1,4 +1,4 @@
-var Bacon = require("baconjs")
+import Bacon from "baconjs"
 
 const initPlayerInput = {
   x: 0,
@@ -11,22 +11,29 @@ const initState = {
   o: initPlayerInput
 }
 
+const initOutput = JSON.stringify(initState)
+const eventTypes = {
+  SELF_UPDATE: "SELF_UPDATE",
+  OPPONENT_UPDATE: "OPPONENT_UPDATE"
+}
+
 export function init(clients) {
-  const p1 = Bacon.fromEvent(clients[0], "SELF_UPDATE")
+  const p1 = Bacon.fromEvent(clients[0], eventTypes.SELF_UPDATE)
     .map((json) => parseWithDefault(initPlayerInput, json))
-  const p2 = Bacon.fromEvent(clients[1], "SELF_UPDATE")
+  const p2 = Bacon.fromEvent(clients[1], eventTypes.SELF_UPDATE)
     .map((json) => parseWithDefault(initPlayerInput, json))
 
-  var previousTime = undefined
 
   const timer = Bacon.fromBinder((sink) => {
-    var id = setInterval(function() {
-      var time = new Date().getTime()
+    let previousTime
+
+    const id = setInterval(() => {
+      const time = new Date().getTime()
       sink(time - previousTime || 0 / 600)
       previousTime = time
     }, 1000 / 60)
 
-    return function() {
+    return () => {
       clearInterval(id)
     }
   })
@@ -54,22 +61,26 @@ export function init(clients) {
       return state
     }
   )
-  .onValue(function(update) {
-    try {
-      var nextUpdate = JSON.stringify(update)
-    } catch (err) {
-      console.log(err)
-    }
-
+  .map((update) => encodeWithDefault(initOutput, update))
+  .onValue(function(json) {
     clients.map(function(client) {
-      client.emit("OPPONENT_UPDATE", nextUpdate)
+      client.emit(eventTypes.OPPONENT_UPDATE, json)
     })
-    return nextUpdate || update
   })
 }
 
+function encodeWithDefault(defaultStr, obj) {
+  let encoded
+
+  try {
+    encoded = JSON.stringify(obj)
+  } catch (err) {console.log(err)}
+
+  return encoded || defaultStr
+}
+
 function parseWithDefault(defaultObj, json) {
-  let parsed = undefined
+  let parsed
 
   try {
     parsed = JSON.parse(json)
