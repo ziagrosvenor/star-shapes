@@ -8831,7 +8831,7 @@ Elm.Config.make = function (_elm) {
    var _op = {};
    var rockImageUrl = "http://vignette2.wikia.nocookie.net/dumbway2sdie/images/3/3a/Asteroid2.png/revision/latest?cb=20141202091820";
    var backgroundImageUrl = "http://media.indiedb.com/images/articles/1/152/151754/auto/stars.png";
-   var enemySpeed = 170;
+   var enemySpeed = 200;
    var serverUrl = "https://star-shapes.herokuapp.com";
    var areaH = 450;
    var areaW = 700;
@@ -9094,7 +9094,7 @@ Elm.StarShapes.make = function (_elm) {
       var _p7 = game;
       var hero = _p7.hero;
       var opponent = _p7.opponent;
-      var scale = 10;
+      var scale = 6;
       var newVel = function (n) {    return _U.eq(_p8,0) || _U.eq(_p9,0) ? scale * $Basics.toFloat(n) : scale * $Basics.toFloat(n) / $Basics.sqrt(2);};
       return _U.update(game,{opponent: _U.update(opponent,{vx: newVel(opp.x),vy: newVel(opp.y)}),hero: _U.update(hero,{vx: newVel(_p8),vy: newVel(_p9)})});
    });
