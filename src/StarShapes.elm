@@ -16,27 +16,21 @@ import Json.Decode exposing ((:=))
 import List exposing (..)
 import SocketIO exposing (io, defaultOptions, emit, on)
 import Enemies exposing (..)
+import Input exposing (..)
 import Movement exposing (..)
 import Config exposing (..)
 
 -- MODEL
-
-responses =
-  Signal.mailbox "{dt:42,h:{x:0,y:0},o:{x:0,y:0}}"
 
 type alias PositionData = {
   x: Int,
   y: Int
 }
 
-positionData = 
-  Json.Decode.object2 PositionData
-    ("x" := Json.Decode.int)
-    ("y" := Json.Decode.int)
-
 type alias Vec = (Float, Float)
 
 socket = io serverUrl defaultOptions
+
 port response : Task String () 
 port response = socket `andThen` on "OPPONENT_UPDATE" responses.address
 
@@ -249,7 +243,7 @@ view (w,h) {hero, opponent, enemiesState, score} =
     isPlayerCollidedWithEnemy = isPlayerCollided hero enemies
 
     heroForm = circle hero.rad |> outlined (dottedHeroLine) |> move (hero.x, hero.y)
-    heroName = text (Text.style textStyle (Text.fromString "ME")) |> move (hero.x, hero.y)
+    heroName = text (Text.style textStyle (Text.fromString "P1")) |> move (hero.x, hero.y)
 
     opponentForm = circle opponent.rad |> outlined (dottedOpponentLine) |> move (opponent.x, opponent.y)
     opponentName = text (Text.style textStyle (Text.fromString "P2")) |> move (opponent.x, opponent.y)
@@ -294,28 +288,12 @@ view (w,h) {hero, opponent, enemiesState, score} =
 
 -- SIGNALS
 
-initialInput =
-    { h = {x = 0, y = 0}
-    , dt = toFloat 40
-    , o = {x = 0, y = 0}    
-  }
-
 main : Signal Element
 main =
   Signal.map2 view Window.dimensions (Signal.foldp update game input)
 
-responsesAsObjects = Signal.map (\response -> 
-    Result.withDefault initialInput (Json.Decode.decodeString decodeInput response)
- ) responses.signal
-
-input : Signal Input
-input = responsesAsObjects
-
 encodeKeyboard : PositionData -> String
 encodeKeyboard {x, y} =
-  let
-      _ = Debug.log "xx" x
-  in
   Json.Encode.encode 0 <| Json.Encode.object
       [ ("x", Json.Encode.int x),
         ("y", Json.Encode.int y)
@@ -330,57 +308,3 @@ playerMove = Signal.map (encodeKeyboard>>send) Keyboard.arrows
 port outgoing : Signal (Task a ())
 port outgoing = playerMove 
 
-
-type alias H =
-    { y : Int
-    , x : Int
-    }
-
-
-type alias O =
-    { y : Int
-    , x : Int
-    }
-
-
-type alias Input =
-    { h : H
-    , dt : Float
-    , o : O
-    }
-
-decodeH : Json.Decode.Decoder H
-decodeH =
-    Json.Decode.object2 H
-         ("y" := Json.Decode.int)
-         ("x" := Json.Decode.int)
-decodeO : Json.Decode.Decoder O
-decodeO =
-    Json.Decode.object2 O
-         ("y" := Json.Decode.int)
-         ("x" := Json.Decode.int)
-decodeInput : Json.Decode.Decoder Input
-decodeInput =
-    Json.Decode.object3 Input
-         ("h" := decodeH)
-         ("dt" := Json.Decode.float)
-         ("o" := decodeO)
-encodeH : H -> Json.Encode.Value
-encodeH record =
-    Json.Encode.object
-        [ ("y", Json.Encode.int record.y)
-        , ("x", Json.Encode.int record.x)
-        ]
-encodeO : O -> Json.Encode.Value
-encodeO record =
-    Json.Encode.object
-        [ ("y", Json.Encode.int record.y)
-        , ("x", Json.Encode.int record.x)
-        ]
-encodeInput : Input -> Json.Encode.Value
-encodeInput record =
-    Json.Encode.object
-        [ ("h", encodeH record.h)
-        , ("dt", Json.Encode.float record.dt)
-        , ("o", encodeO record.o)
-        ]
