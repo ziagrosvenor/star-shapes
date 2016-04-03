@@ -11,7 +11,7 @@ import Result
 import Task exposing (Task, andThen)
 import Random
 import Text
-import Json.Encode as Encode 
+import Json.Encode 
 import Json.Decode exposing ((:=))
 import List exposing (..)
 import SocketIO exposing (io, defaultOptions, emit, on)
@@ -22,7 +22,7 @@ import Config exposing (..)
 -- MODEL
 
 responses =
-  Signal.mailbox "{x: 0, y: 0}"
+  Signal.mailbox "{dt:42,h:{x:0,y:0},o:{x:0,y:0}}"
 
 type alias PositionData = {
   x: Int,
@@ -65,6 +65,7 @@ textStyle = { typeface = [ "roboto", "sans-serif" ]
 
 heroColor = white
 opponentColor = purple
+backgroundPos = (areaW, areaH)
 
 hero : Model
 hero =
@@ -78,28 +79,24 @@ type alias Game = {
   hero: Model,
   opponent: Model,
   enemiesState: Enemies,
-  score: Float,
-  seed: Random.Seed,
-  backgroundPos: (Float, Float)
+  score: Float
 }
 
 game = {
   opponent = opponent,
   hero = hero,
   enemiesState = getEnemies 10 (4, 30) enemiesState,
-  score = 0,
-  seed = Random.initialSeed 3,
-  backgroundPos = (areaW, areaH)
+  score = 0
  }
 
 -- UPDATE
 
-update : ( Time, { x : Int, y : Int }, { x : Int, y : Int } ) -> Game -> Game
-update (timeDelta, direction, opponentDir) game =
+update : Input -> Game -> Game
+update {dt, h, o} game =
   game
     |> updateEnemies
-    |> newVelocity direction opponentDir
-    |> updatePosition timeDelta
+    |> newVelocity h o
+    |> updatePosition dt
     |> detectCollision
 
 newVelocity : { x:Int, y:Int } -> { x:Int, y:Int } -> Game -> Game
@@ -149,7 +146,7 @@ updateEnemies game =
         enemiesState = nextEnemiesState
     }
 
-updateHeroPos : Time -> Model -> Model
+updateHeroPos : Float -> Model -> Model
 updateHeroPos dt hero =
   let
     {x, y, vx, vy} = hero
@@ -157,12 +154,12 @@ updateHeroPos dt hero =
     updatedX = if (isAtBorder areaW x) then
       invertPosition dt areaW vx x
     else
-      clamp (-areaW/2) (areaW/2) (x + dt * vx)
+      clamp (-areaW/2) (areaW/2) (x + (dt / 15) * vx)
 
     updatedY = if (isAtBorder areaH y) then
       invertPosition dt areaH vy y
     else
-      clamp (-areaH/2) (areaH/2) (y + dt * vy)
+      clamp (-areaH/2) (areaH/2) (y + (dt / 15) * vy)
   in
     {
       hero |
@@ -170,7 +167,7 @@ updateHeroPos dt hero =
         y = updatedY 
     }
 
-updatePosition : Time -> Game -> Game
+updatePosition : Float -> Game -> Game
 updatePosition dt game =
   let
     {hero, enemiesState, opponent} = game
@@ -231,7 +228,7 @@ detectCollision game =
 -- VIEW
 
 view : (Int,Int) -> Game -> Element
-view (w,h) {hero, opponent, enemiesState, score, backgroundPos} =
+view (w,h) {hero, opponent, enemiesState, score} =
   let
     {enemies} = enemiesState
     heroLineColor = dotted hero.color
@@ -297,27 +294,31 @@ view (w,h) {hero, opponent, enemiesState, score, backgroundPos} =
 
 -- SIGNALS
 
+initialInput =
+    { h = {x = 0, y = 0}
+    , dt = toFloat 40
+    , o = {x = 0, y = 0}    
+  }
+
 main : Signal Element
 main =
   Signal.map2 view Window.dimensions (Signal.foldp update game input)
 
 responsesAsObjects = Signal.map (\response -> 
- Result.withDefault {x = 0, y = 0} (Json.Decode.decodeString positionData response)
+    Result.withDefault initialInput (Json.Decode.decodeString decodeInput response)
  ) responses.signal
 
-input : Signal ( Time, { x : Int, y : Int }, { x : Int, y : Int } )
-input =
-  Signal.sampleOn delta (Signal.map3 (,,) delta Keyboard.arrows responsesAsObjects)
-
-delta : Signal Time
-delta =
-  Signal.map (\t -> t / 20) (fps 60)
+input : Signal Input
+input = responsesAsObjects
 
 encodeKeyboard : PositionData -> String
 encodeKeyboard {x, y} =
-  Encode.encode 0 <| Encode.object
-      [ ("x", Encode.int x),
-        ("y", Encode.int y)
+  let
+      _ = Debug.log "xx" x
+  in
+  Json.Encode.encode 0 <| Json.Encode.object
+      [ ("x", Json.Encode.int x),
+        ("y", Json.Encode.int y)
       ]
 
 send x = 
@@ -328,3 +329,58 @@ playerMove = Signal.map (encodeKeyboard>>send) Keyboard.arrows
 
 port outgoing : Signal (Task a ())
 port outgoing = playerMove 
+
+
+type alias H =
+    { y : Int
+    , x : Int
+    }
+
+
+type alias O =
+    { y : Int
+    , x : Int
+    }
+
+
+type alias Input =
+    { h : H
+    , dt : Float
+    , o : O
+    }
+
+decodeH : Json.Decode.Decoder H
+decodeH =
+    Json.Decode.object2 H
+         ("y" := Json.Decode.int)
+         ("x" := Json.Decode.int)
+decodeO : Json.Decode.Decoder O
+decodeO =
+    Json.Decode.object2 O
+         ("y" := Json.Decode.int)
+         ("x" := Json.Decode.int)
+decodeInput : Json.Decode.Decoder Input
+decodeInput =
+    Json.Decode.object3 Input
+         ("h" := decodeH)
+         ("dt" := Json.Decode.float)
+         ("o" := decodeO)
+encodeH : H -> Json.Encode.Value
+encodeH record =
+    Json.Encode.object
+        [ ("y", Json.Encode.int record.y)
+        , ("x", Json.Encode.int record.x)
+        ]
+encodeO : O -> Json.Encode.Value
+encodeO record =
+    Json.Encode.object
+        [ ("y", Json.Encode.int record.y)
+        , ("x", Json.Encode.int record.x)
+        ]
+encodeInput : Input -> Json.Encode.Value
+encodeInput record =
+    Json.Encode.object
+        [ ("h", encodeH record.h)
+        , ("dt", Json.Encode.float record.dt)
+        , ("o", encodeO record.o)
+        ]

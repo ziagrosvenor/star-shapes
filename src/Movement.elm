@@ -8,7 +8,7 @@ invertPosition dt axis velocity position =
     else
       position + (axis / 1.01) 
   in
-    clamp (-axis/2) (axis/2) (newPosition + dt * velocity)
+    clamp (-axis/2) (axis/2) (newPosition + (dt / 15) * velocity)
 
 isAtBorder : Float -> Float -> Bool
 isAtBorder axis position =

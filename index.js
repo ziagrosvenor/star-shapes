@@ -1,8 +1,9 @@
-var express = require('express');
-var cors = require('cors');
-var crypto = require("crypto")
-var clients = []
-var app = express()
+import express from "express"
+import cors from "cors"
+import crypto from "crypto"
+const clients = []
+const app = express()
+import {init} from "./update"
 
 var whitelist = ["http://0.0.0.0:8000"];
 var corsOptions = {
@@ -13,23 +14,22 @@ var corsOptions = {
 };
 
 app.use(cors(corsOptions))
-app.use(express.static(__dirname + '/public/'));
+app.use(express.static(__dirname + "/public/"));
 
-var http = require('http').Server(app)
+var http = require("http").Server(app)
 var io = require("socket.io")(http)
+var numberOfGames = 0
 
 io.on("connection", function(client) {
-  client.id = id()
-  clients.push(client)
+  if (!clients[numberOfGames])
+    return clients.push([client])
 
-  client.on("SELF_UPDATE", function(data) {
-    clients.map(function(socket) {
-      if (socket.id === client.id)
-        return
-
-      socket.emit("OPPONENT_UPDATE", data)
-    })
-  })
+  if (clients[numberOfGames].length === 1) {
+    clients[numberOfGames].push(client)
+    init(clients[numberOfGames])
+    numberOfGames++
+    return
+  }
 })
 
 io.on("error", console.log)
@@ -38,7 +38,7 @@ function id() {
   return crypto.randomBytes(12).toString("hex")
 }
 
-app.get('/', function(request, response) {
+app.get("/", function(request, response) {
   fs.readFile(__dirname + "/public/index.html", "utf8",  function(err, file) {
     console.log(err)
     response.send(file)
