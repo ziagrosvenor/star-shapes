@@ -96,7 +96,7 @@ update {dt, h, o} game =
 newVelocity : { x:Int, y:Int } -> { x:Int, y:Int } -> Game -> Game
 newVelocity {x,y} opp game =
   let
-    scale = 10
+    scale = 6
 
     {hero, opponent} = game
 
