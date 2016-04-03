@@ -1,24 +1,24 @@
 import express from "express"
 import cors from "cors"
 import crypto from "crypto"
-const clients = []
-const app = express()
 import {init} from "./update"
 
-var whitelist = ["http://0.0.0.0:8000"];
-var corsOptions = {
-  origin: function(origin, callback){
-    var originIsWhitelisted = whitelist.indexOf(origin) !== -1;
-    callback(null, originIsWhitelisted);
+const app = express()
+const whitelist = ["http://0.0.0.0:8000"]
+const corsOptions = {
+  origin(origin, callback) {
+    const originIsWhitelisted = whitelist.indexOf(origin) !== -1
+    callback(null, originIsWhitelisted)
   }
-};
+}
 
 app.use(cors(corsOptions))
-app.use(express.static(__dirname + "/public/"));
+app.use(express.static(__dirname + "/public/"))
 
-var http = require("http").Server(app)
-var io = require("socket.io")(http)
-var numberOfGames = 0
+const http = require("http").Server(app)
+const io = require("socket.io")(http)
+const clients = []
+let numberOfGames = 0
 
 io.on("connection", function(client) {
   if (!clients[numberOfGames])
@@ -43,6 +43,6 @@ app.get("/", function(request, response) {
     console.log(err)
     response.send(file)
   })
-});
+})
 
 http.listen(process.env.PORT || 3009)

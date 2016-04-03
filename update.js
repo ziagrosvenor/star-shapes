@@ -40,30 +40,30 @@ export function init(clients) {
 
   Bacon.update(
     initState,
-    [timer, p1, p2], function(state, dt, p1, p2) {
+    [timer, p1, p2], (state, dt, p1, p2) => {
       state.dt = dt
       state.h = p1
       state.o  = p2
       return state
     },
-    [timer, p1], function(state, dt, p1) {
+    [timer, p1], (state, dt, p1) => {
       state.dt = dt
       state.h = p1
       return state
     },
-    [timer, p2], function(state, dt, p2) {
+    [timer, p2], (state, dt, p2) => {
       state.dt = dt
       state.o = p2
       return state
     },
-    [timer], function(state, dt) {
+    [timer], (state, dt) => {
       state.dt = dt
       return state
     }
   )
   .map((update) => encodeWithDefault(initOutput, update))
-  .onValue(function(json) {
-    clients.map(function(client) {
+  .onValue((json) => {
+    clients.map((client) => {
       client.emit(eventTypes.OPPONENT_UPDATE, json)
     })
   })
