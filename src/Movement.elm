@@ -23,3 +23,12 @@ moveItem speed dt axis (startPos, endPos) velocity position =
       (startPos - endPos)
   in
     clamp (-axis/2) (axis/2) (position + (increment / speed) + dt * velocity)
+
+type alias Vec = (Float, Float)
+
+vecLen : Vec -> Float
+vecLen (x, y) = sqrt(x * x + y * y)
+
+vecSub : Vec -> Vec -> Vec
+vecSub (ax, ay) (bx, by) = (ax - bx, ay - by)
+

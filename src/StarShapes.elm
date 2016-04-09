@@ -1,67 +1,24 @@
 module StarShapes where
 
+import Graphics.Input.Field exposing (Content, noContent)
+import Graphics.Element exposing (Element)
 import Color exposing (..)
-import Graphics.Collage exposing (..)
-import Graphics.Element exposing (..)
-import Graphics.Input.Field exposing (..)
-import Graphics.Input exposing (..)
 import Keyboard
 import Time exposing (..)
 import Window
-import Result
 import Task exposing (Task, andThen)
-import Text
 import List exposing (..)
 import SocketIO exposing (io, defaultOptions, emit, on)
-import Enemies exposing (..)
+
+-- GAME MODULES
+import Config exposing (..)
+import InitialState exposing (..)
+import GameTypes exposing (Model, Enemies, Enemy)
 import Inputs exposing (..)
 import Outputs exposing (..)
+import Views exposing (..)
+import Enemies exposing (..)
 import Movement exposing (..)
-import Config exposing (..)
-
-port response : Task String () 
-port response = socket `andThen` on "OPPONENT_UPDATE" responses.address
-
-type alias Vec = (Float, Float)
-
-vecLen : Vec -> Float
-vecLen (x, y) = sqrt(x * x + y * y)
-
-vecSub : Vec -> Vec -> Vec
-vecSub (ax, ay) (bx, by) = (ax - bx, ay - by)
-
-type alias Model =
-  { x : Float
-  , y : Float
-  , vx : Float
-  , vy : Float
-  , rad: Float
-  , color: Color
-  }
-
-textStyle = { typeface = [ "roboto", "sans-serif" ]
-            , height   = Just 24
-            , color    = white
-            , bold     = True
-            , italic   = False
-            , line = Nothing
-          }
-
-heroColor = white
-opponentColor = purple
-backgroundPos = (areaW, areaH)
-
-hero : Model
-hero =
-  Model 0 0 0 0 40 heroColor
-
-opponent : Model
-opponent  =
-  Model 0 0 0 0 40 opponentColor
-
-type View
-  = PlayerNameForm
-  | GameView
 
 type alias Game = {
   hero: Model,
@@ -75,11 +32,16 @@ type alias Game = {
 gameState = {
   opponent = opponent,
   hero = hero,
-  enemiesState = getEnemies 10 (4, 30) enemiesState,
+  enemiesState = initialEnemies,
   score = 0,
   name = noContent,
   view = PlayerNameForm
  }
+
+main : Signal Element
+main =
+  Signal.map2 router Window.dimensions 
+    (Signal.foldp update gameState input)
 
 update : (Input, Content, Action) -> Game -> Game
 update ({dt, h, o}, name, action) game =
@@ -91,11 +53,36 @@ update ({dt, h, o}, name, action) game =
     |> updateName name 
     |> selectView action
 
+selectView : Action -> Game -> Game
+selectView action game =
+  case action of
+    NoOp -> 
+      {
+        game |
+          view = PlayerNameForm
+      }
+    SubmitName -> 
+      {
+        game |
+          view = GameView
+      }
+    Quit -> 
+      {
+        gameState |
+          view = PlayerNameForm,
+          name = game.name
+      }
+
+port outgoing : Signal (Task a ())
+port outgoing = playerMove 
+
+port response : Task String () 
+port response = socket `andThen` on "OPPONENT_UPDATE" responses.address
+
 newVelocity : { x:Int, y:Int } -> { x:Int, y:Int } -> Game -> Game
 newVelocity {x,y} opp game =
   let
     scale = 6
-
     {hero, opponent} = game
 
     newVel n =
@@ -184,9 +171,6 @@ getListOfCollidingEnemies hero enemies =
     (rad > hero.rad) && ((vecLen <| vecSub (hero.x, hero.y) (x, y)) < hero.rad + rad)
   ) enemies
 
-isPlayerCollided player enemies =
-  length (getListOfCollidingEnemies player enemies) > 0
-
 detectCollision : Game -> Game
 detectCollision game =
   let
@@ -229,118 +213,3 @@ updateName name game =
       name = name
   }
 
-selectView : Action -> Game -> Game
-selectView action game =
-  case action of
-    NoOp -> 
-      {
-        game |
-          view = PlayerNameForm
-      }
-    SubmitName -> 
-      {
-        game |
-          view = GameView
-      }
-    Quit -> 
-      {
-        gameState |
-          view = PlayerNameForm,
-          name = game.name
-      }
-
-inputNameView (w, h) {name} =
-  let
-    _ = Debug.log "INPUT NAME" name
-  in
-    container w h middle <|
-    collage areaW areaH
-      [toForm (field defaultStyle (Signal.message nameMailbox.address) "Name" name), 
-       moveX 200 (toForm (button (Signal.message actionsMailbox.address SubmitName) "CHOOSE"))
-      ]
-  
-router (w, h) state =
-  let 
-    { view } = state
-  in
-    case view of
-      PlayerNameForm -> ( inputNameView (w, h) state )
-      GameView -> ( gameView (w, h) state )
-
-gameView : (Int,Int) -> Game -> Element
-gameView (w,h) {hero, opponent, enemiesState, score, name} =
-  let
-    {enemies} = enemiesState
-    heroLineColor = dotted hero.color
-    dottedHeroLine = {
-      heroLineColor |
-        width = 4
-    }
-
-    opponentLineColor = dotted opponent.color
-    dottedOpponentLine = {
-      opponentLineColor |
-        width = 4
-    }
-
-    (bgX, bgY) = backgroundPos
-
-    background = toForm (image areaW areaH backgroundImageUrl)
-    isPlayerCollidedWithEnemy = isPlayerCollided hero enemies
-
-    heroForm = circle hero.rad |> outlined (dottedHeroLine) |> move (hero.x, hero.y)
-    heroName = text (Text.style textStyle (Text.fromString name.string)) |> move (hero.x, hero.y)
-
-    opponentForm = circle opponent.rad |> outlined (dottedOpponentLine) |> move (opponent.x, opponent.y)
-    opponentName = text (Text.style textStyle (Text.fromString "P2")) |> move (opponent.x, opponent.y)
-
-    enemyForms = map (\{color, rad, x, y} ->
-      let
-        dottedEnemyLine = {
-          dottedHeroLine |
-            color = color,
-            width = 12
-        }
-        rock = toForm (image (round rad) (round rad) rockImageUrl)
-
-        enemyForm = if hero.rad > rad then
-          -- (square rad |> outlined (solid color) |> move (x, y)) --
-          rock |> move (x, y)
-        else
-          group [
-            (circle rad |> outlined dottedEnemyLine |> move (x, y)),
-            text (Text.style textStyle (Text.fromString "Alien")) |> move (x, y)
-          ]
-
-      in
-        enemyForm
-
-    ) enemies
-    textScore = text (Text.style textStyle (Text.fromString ("Score " ++ toString score))) |> move (65 - areaW/2, 30-areaH/2)
-
-    solidChar = dotted charcoal
-
-    lineStyle = {
-       solidChar |
-        width = 9
-    }
-
-    pathForm = traced (lineStyle) (path [(-140, -140), (-200, 60), (-40, 100)])
-
-    quitButton = move ( 290, -200 ) (toForm (button (Signal.message actionsMailbox.address Quit) "QUIT"))
-
-  in
-    container w h middle <|
-    collage areaW areaH
-      (concat [
-        [background, pathForm, opponentForm, opponentName, heroForm, heroName, textScore],
-        enemyForms,
-        [quitButton]
-      ])
-
-main : Signal Element
-main =
-  Signal.map2 router Window.dimensions (Signal.foldp update gameState input)
-
-port outgoing : Signal (Task a ())
-port outgoing = playerMove 

@@ -5,25 +5,17 @@ import List exposing (..)
 import Color exposing (..)
 import Movement exposing (..)
 import Config exposing (..)
+import GameTypes exposing (Enemy, Enemies, Model)
 
-type alias Enemy = {
-    x: Float
-  , y : Float
-  , startPos: Position
-  , endPos: Position
-  , rad: Float
-  , color: Color
-}
+enemiesState = {
+  enemies = [
+    Enemy 50 50 {x = 1, y = 1} {x = 1, y = 1} 10 yellow
+  ],
 
-type alias Enemies = {
-  enemies: List Enemy,
-  seed: Random.Seed
-}
+  seed = Random.initialSeed 20
+ }
 
-type alias Position = {
-  x: Float,
-  y: Float
-}
+initialEnemies = getEnemies 10 (4, 30) enemiesState
 
 getRandomX : Random.Seed -> (Float, Random.Seed)
 getRandomX seed =
@@ -41,14 +33,6 @@ getEnemyColor x =
     orange
   else
     red
-
-enemiesState = {
-  enemies = [
-    Enemy 50 50 {x = 1, y = 1} {x = 1, y = 1} 10 yellow
-  ],
-
-  seed = Random.initialSeed 20
- }
 
 getEnemies : Int -> (Float, Float) -> Enemies -> Enemies
 getEnemies numEnemies size enemiesState =
@@ -83,9 +67,7 @@ getEnemies numEnemies size enemiesState =
           enemies = nextEnemies,
           seed = fifthSeed
         }
-
      ) enemiesState (repeat numEnemies ""))
-
 
 updateEnemyPos : Time -> Enemy -> Enemy
 updateEnemyPos dt {x, y, rad, color, startPos, endPos} = 
@@ -109,6 +91,11 @@ updateEnemyPos dt {x, y, rad, color, startPos, endPos} =
       startPos
      else
        endPos
-
   in
     Enemy newX newY newStartPos newEndPos rad color
+
+getListOfCollidingEnemies : Model -> List Enemy -> List Enemy
+getListOfCollidingEnemies hero enemies =
+  filter (\{x, y, rad} ->
+    (rad > hero.rad) && ((vecLen <| vecSub (hero.x, hero.y) (x, y)) < hero.rad + rad)
+  ) enemies
