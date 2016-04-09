@@ -4,7 +4,7 @@ import crypto from "crypto"
 import {init} from "./update"
 
 const app = express()
-const whitelist = ["http://0.0.0.0:8000"]
+const whitelist = ["http://localhost:8000"]
 const corsOptions = {
   origin(origin, callback) {
     const originIsWhitelisted = whitelist.indexOf(origin) !== -1
@@ -45,4 +45,5 @@ app.get("/", function(request, response) {
   })
 })
 
-http.listen(process.env.PORT || 3009)
+const PORT = process.env.PORT || 3009
+http.listen(PORT, () => console.log("HELLO PORT : " + PORT))

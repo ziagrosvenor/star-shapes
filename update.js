@@ -1,4 +1,5 @@
 import Bacon from "baconjs"
+import {zip, curry, map, merge} from "ramda"
 
 const initPlayerInput = {
   x: 0,
@@ -17,12 +18,32 @@ const eventTypes = {
   OPPONENT_UPDATE: "OPPONENT_UPDATE"
 }
 
+
+function parseWithDefault(defaultObj, json) {
+  let parsed
+
+  try {
+    parsed = JSON.parse(json)
+  } catch (err) {console.log(err)}
+
+  return parsed || defaultObj
+}
+
+const encodeWithDefault = curry(function encodeWithDefault(defaultStr, obj) {
+  let encoded
+
+  try {
+    encoded = JSON.stringify(obj)
+  } catch (err) {console.log(err)}
+
+  return encoded || defaultStr
+})
+
 export function init(clients) {
   const p1 = Bacon.fromEvent(clients[0], eventTypes.SELF_UPDATE)
     .map((json) => parseWithDefault(initPlayerInput, json))
   const p2 = Bacon.fromEvent(clients[1], eventTypes.SELF_UPDATE)
     .map((json) => parseWithDefault(initPlayerInput, json))
-
 
   const timer = Bacon.fromBinder((sink) => {
     let previousTime
@@ -61,31 +82,30 @@ export function init(clients) {
       return state
     }
   )
-  .map((update) => encodeWithDefault(initOutput, update))
-  .onValue((json) => {
-    clients.map((client) => {
-      client.emit(eventTypes.OPPONENT_UPDATE, json)
-    })
+  .map((playerOneUpdate) => {
+    const playerOne = playerOneUpdate.h
+    const playerTwo = playerOneUpdate.o
+
+    const playerTwoUpdate = {
+      h: playerTwo,
+      o: playerOne
+    }
+
+    return [
+      playerOneUpdate,
+      merge(playerOneUpdate, playerTwoUpdate)
+    ]
+
   })
-}
-
-function encodeWithDefault(defaultStr, obj) {
-  let encoded
-
-  try {
-    encoded = JSON.stringify(obj)
-  } catch (err) {console.log(err)}
-
-  return encoded || defaultStr
-}
-
-function parseWithDefault(defaultObj, json) {
-  let parsed
-
-  try {
-    parsed = JSON.parse(json)
-  } catch (err) {console.log(err)}
-
-  return parsed || defaultObj
+  .map((updates) => map(encodeWithDefault(initOutput), updates))
+  .onValue((updates) => {
+    map(
+      (clientUpdatePair) => {
+        const [client, json] = clientUpdatePair
+        client.emit(eventTypes.OPPONENT_UPDATE, json)
+      },
+      zip(clients, updates)
+    )
+  })
 }
 
