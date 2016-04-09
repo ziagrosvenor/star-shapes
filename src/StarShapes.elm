@@ -3,36 +3,26 @@ module StarShapes where
 import Color exposing (..)
 import Graphics.Collage exposing (..)
 import Graphics.Element exposing (..)
+import Graphics.Input.Field exposing (..)
+import Graphics.Input exposing (..)
 import Keyboard
-import Debug
 import Time exposing (..)
 import Window
 import Result
 import Task exposing (Task, andThen)
-import Random
 import Text
-import Json.Encode 
-import Json.Decode exposing ((:=))
 import List exposing (..)
 import SocketIO exposing (io, defaultOptions, emit, on)
 import Enemies exposing (..)
-import Input exposing (..)
+import Inputs exposing (..)
+import Outputs exposing (..)
 import Movement exposing (..)
 import Config exposing (..)
 
--- MODEL
-
-type alias PositionData = {
-  x: Int,
-  y: Int
-}
-
-type alias Vec = (Float, Float)
-
-socket = io serverUrl defaultOptions
-
 port response : Task String () 
 port response = socket `andThen` on "OPPONENT_UPDATE" responses.address
+
+type alias Vec = (Float, Float)
 
 vecLen : Vec -> Float
 vecLen (x, y) = sqrt(x * x + y * y)
@@ -69,29 +59,37 @@ opponent : Model
 opponent  =
   Model 0 0 0 0 40 opponentColor
 
+type View
+  = PlayerNameForm
+  | GameView
+
 type alias Game = {
   hero: Model,
   opponent: Model,
   enemiesState: Enemies,
-  score: Float
+  score: Float,
+  name: Content,
+  view: View
 }
 
-game = {
+gameState = {
   opponent = opponent,
   hero = hero,
   enemiesState = getEnemies 10 (4, 30) enemiesState,
-  score = 0
+  score = 0,
+  name = noContent,
+  view = PlayerNameForm
  }
 
--- UPDATE
-
-update : Input -> Game -> Game
-update {dt, h, o} game =
+update : (Input, Content, Action) -> Game -> Game
+update ({dt, h, o}, name, action) game =
   game
     |> updateEnemies
     |> newVelocity h o
     |> updatePosition dt
     |> detectCollision
+    |> updateName name 
+    |> selectView action
 
 newVelocity : { x:Int, y:Int } -> { x:Int, y:Int } -> Game -> Game
 newVelocity {x,y} opp game =
@@ -202,7 +200,6 @@ detectCollision game =
       else
         True
     ) enemies
-
     damageAgainstPlayer = getListOfCollidingEnemies hero enemiesToReturn
     isCollided = isPlayerCollided hero enemies 
 
@@ -225,10 +222,53 @@ detectCollision game =
           }
       }
 
--- VIEW
+updateName : Content -> Game -> Game
+updateName name game =
+  {
+    game |
+      name = name
+  }
 
-view : (Int,Int) -> Game -> Element
-view (w,h) {hero, opponent, enemiesState, score} =
+selectView : Action -> Game -> Game
+selectView action game =
+  case action of
+    NoOp -> 
+      {
+        game |
+          view = PlayerNameForm
+      }
+    SubmitName -> 
+      {
+        game |
+          view = GameView
+      }
+    Quit -> 
+      {
+        gameState |
+          view = PlayerNameForm,
+          name = game.name
+      }
+
+inputNameView (w, h) {name} =
+  let
+    _ = Debug.log "INPUT NAME" name
+  in
+    container w h middle <|
+    collage areaW areaH
+      [toForm (field defaultStyle (Signal.message nameMailbox.address) "Name" name), 
+       moveX 200 (toForm (button (Signal.message actionsMailbox.address SubmitName) "CHOOSE"))
+      ]
+  
+router (w, h) state =
+  let 
+    { view } = state
+  in
+    case view of
+      PlayerNameForm -> ( inputNameView (w, h) state )
+      GameView -> ( gameView (w, h) state )
+
+gameView : (Int,Int) -> Game -> Element
+gameView (w,h) {hero, opponent, enemiesState, score, name} =
   let
     {enemies} = enemiesState
     heroLineColor = dotted hero.color
@@ -249,7 +289,7 @@ view (w,h) {hero, opponent, enemiesState, score} =
     isPlayerCollidedWithEnemy = isPlayerCollided hero enemies
 
     heroForm = circle hero.rad |> outlined (dottedHeroLine) |> move (hero.x, hero.y)
-    heroName = text (Text.style textStyle (Text.fromString "P1")) |> move (hero.x, hero.y)
+    heroName = text (Text.style textStyle (Text.fromString name.string)) |> move (hero.x, hero.y)
 
     opponentForm = circle opponent.rad |> outlined (dottedOpponentLine) |> move (opponent.x, opponent.y)
     opponentName = text (Text.style textStyle (Text.fromString "P2")) |> move (opponent.x, opponent.y)
@@ -287,30 +327,20 @@ view (w,h) {hero, opponent, enemiesState, score} =
 
     pathForm = traced (lineStyle) (path [(-140, -140), (-200, 60), (-40, 100)])
 
+    quitButton = move ( 290, -200 ) (toForm (button (Signal.message actionsMailbox.address Quit) "QUIT"))
+
   in
     container w h middle <|
     collage areaW areaH
-      (concat [[background, pathForm, opponentForm, opponentName, heroForm, heroName, textScore], enemyForms])
-
--- SIGNALS
+      (concat [
+        [background, pathForm, opponentForm, opponentName, heroForm, heroName, textScore],
+        enemyForms,
+        [quitButton]
+      ])
 
 main : Signal Element
 main =
-  Signal.map2 view Window.dimensions (Signal.foldp update game input)
-
-encodeKeyboard : PositionData -> String
-encodeKeyboard {x, y} =
-  Json.Encode.encode 0 <| Json.Encode.object
-      [ ("x", Json.Encode.int x),
-        ("y", Json.Encode.int y)
-      ]
-
-send x = 
-  socket `andThen` emit "SELF_UPDATE" x
-
-playerMove : Signal (Task x ())
-playerMove = Signal.map (encodeKeyboard>>send) Keyboard.arrows 
+  Signal.map2 router Window.dimensions (Signal.foldp update gameState input)
 
 port outgoing : Signal (Task a ())
 port outgoing = playerMove 
-
