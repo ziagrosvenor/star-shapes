@@ -6,6 +6,7 @@ The game is [avaiable to play on this URL](https://star-shapes.herokuapp.com/ "S
 
 ### Tech
 - Elm Language
+- Elm SocketIO
 - HTML 5 Canvas
 - Node JS
 - Express
@@ -25,3 +26,4 @@ The game is [avaiable to play on this URL](https://star-shapes.herokuapp.com/ "S
 - Show top scores screen.
 - Animations.
 - Use sprites.
+- Show duration of gameplay in seconds/milliseconds.
