@@ -7634,6 +7634,557 @@ Elm.Dict.make = function (_elm) {
                              ,values: values
                              ,toList: toList
                              ,fromList: fromList};
+};// setup
+Elm.Native = Elm.Native || {};
+Elm.Native.Graphics = Elm.Native.Graphics || {};
+Elm.Native.Graphics.Input = Elm.Native.Graphics.Input || {};
+
+// definition
+Elm.Native.Graphics.Input.make = function(localRuntime) {
+	'use strict';
+
+	// attempt to short-circuit
+	if ('values' in Elm.Native.Graphics.Input) {
+		return Elm.Native.Graphics.Input.values;
+	}
+
+	var Color = Elm.Native.Color.make(localRuntime);
+	var List = Elm.Native.List.make(localRuntime);
+	var Signal = Elm.Native.Signal.make(localRuntime);
+	var Text = Elm.Native.Text.make(localRuntime);
+	var Utils = Elm.Native.Utils.make(localRuntime);
+
+	var Element = Elm.Native.Graphics.Element.make(localRuntime);
+
+
+	function renderDropDown(model)
+	{
+		var drop = Element.createNode('select');
+		drop.style.border = '0 solid';
+		drop.style.pointerEvents = 'auto';
+		drop.style.display = 'block';
+
+		drop.elm_values = List.toArray(model.values);
+		drop.elm_handler = model.handler;
+		var values = drop.elm_values;
+
+		for (var i = 0; i < values.length; ++i)
+		{
+			var option = Element.createNode('option');
+			var name = values[i]._0;
+			option.value = name;
+			option.innerHTML = name;
+			drop.appendChild(option);
+		}
+		drop.addEventListener('change', function() {
+			Signal.sendMessage(drop.elm_handler(drop.elm_values[drop.selectedIndex]._1));
+		});
+
+		return drop;
+	}
+
+	function updateDropDown(node, oldModel, newModel)
+	{
+		node.elm_values = List.toArray(newModel.values);
+		node.elm_handler = newModel.handler;
+
+		var values = node.elm_values;
+		var kids = node.childNodes;
+		var kidsLength = kids.length;
+
+		var i = 0;
+		for (; i < kidsLength && i < values.length; ++i)
+		{
+			var option = kids[i];
+			var name = values[i]._0;
+			option.value = name;
+			option.innerHTML = name;
+		}
+		for (; i < kidsLength; ++i)
+		{
+			node.removeChild(node.lastChild);
+		}
+		for (; i < values.length; ++i)
+		{
+			var option = Element.createNode('option');
+			var name = values[i]._0;
+			option.value = name;
+			option.innerHTML = name;
+			node.appendChild(option);
+		}
+		return node;
+	}
+
+	function dropDown(handler, values)
+	{
+		return A3(Element.newElement, 100, 24, {
+			ctor: 'Custom',
+			type: 'DropDown',
+			render: renderDropDown,
+			update: updateDropDown,
+			model: {
+				values: values,
+				handler: handler
+			}
+		});
+	}
+
+	function renderButton(model)
+	{
+		var node = Element.createNode('button');
+		node.style.display = 'block';
+		node.style.pointerEvents = 'auto';
+		node.elm_message = model.message;
+		function click()
+		{
+			Signal.sendMessage(node.elm_message);
+		}
+		node.addEventListener('click', click);
+		node.innerHTML = model.text;
+		return node;
+	}
+
+	function updateButton(node, oldModel, newModel)
+	{
+		node.elm_message = newModel.message;
+		var txt = newModel.text;
+		if (oldModel.text !== txt)
+		{
+			node.innerHTML = txt;
+		}
+		return node;
+	}
+
+	function button(message, text)
+	{
+		return A3(Element.newElement, 100, 40, {
+			ctor: 'Custom',
+			type: 'Button',
+			render: renderButton,
+			update: updateButton,
+			model: {
+				message: message,
+				text: text
+			}
+		});
+	}
+
+	function renderCustomButton(model)
+	{
+		var btn = Element.createNode('div');
+		btn.style.pointerEvents = 'auto';
+		btn.elm_message = model.message;
+
+		btn.elm_up    = Element.render(model.up);
+		btn.elm_hover = Element.render(model.hover);
+		btn.elm_down  = Element.render(model.down);
+
+		btn.elm_up.style.display = 'block';
+		btn.elm_hover.style.display = 'none';
+		btn.elm_down.style.display = 'none';
+
+		btn.appendChild(btn.elm_up);
+		btn.appendChild(btn.elm_hover);
+		btn.appendChild(btn.elm_down);
+
+		function swap(visibleNode, hiddenNode1, hiddenNode2)
+		{
+			visibleNode.style.display = 'block';
+			hiddenNode1.style.display = 'none';
+			hiddenNode2.style.display = 'none';
+		}
+
+		var overCount = 0;
+		function over(e)
+		{
+			if (overCount++ > 0) return;
+			swap(btn.elm_hover, btn.elm_down, btn.elm_up);
+		}
+		function out(e)
+		{
+			if (btn.contains(e.toElement || e.relatedTarget)) return;
+			overCount = 0;
+			swap(btn.elm_up, btn.elm_down, btn.elm_hover);
+		}
+		function up()
+		{
+			swap(btn.elm_hover, btn.elm_down, btn.elm_up);
+			Signal.sendMessage(btn.elm_message);
+		}
+		function down()
+		{
+			swap(btn.elm_down, btn.elm_hover, btn.elm_up);
+		}
+
+		btn.addEventListener('mouseover', over);
+		btn.addEventListener('mouseout', out);
+		btn.addEventListener('mousedown', down);
+		btn.addEventListener('mouseup', up);
+
+		return btn;
+	}
+
+	function updateCustomButton(node, oldModel, newModel)
+	{
+		node.elm_message = newModel.message;
+
+		var kids = node.childNodes;
+		var styleUp    = kids[0].style.display;
+		var styleHover = kids[1].style.display;
+		var styleDown  = kids[2].style.display;
+
+		Element.updateAndReplace(kids[0], oldModel.up, newModel.up);
+		Element.updateAndReplace(kids[1], oldModel.hover, newModel.hover);
+		Element.updateAndReplace(kids[2], oldModel.down, newModel.down);
+
+		var kids = node.childNodes;
+		kids[0].style.display = styleUp;
+		kids[1].style.display = styleHover;
+		kids[2].style.display = styleDown;
+
+		return node;
+	}
+
+	function max3(a, b, c)
+	{
+		var ab = a > b ? a : b;
+		return ab > c ? ab : c;
+	}
+
+	function customButton(message, up, hover, down)
+	{
+		return A3(Element.newElement,
+				  max3(up._0.props.width, hover._0.props.width, down._0.props.width),
+				  max3(up._0.props.height, hover._0.props.height, down._0.props.height),
+				  { ctor: 'Custom',
+					type: 'CustomButton',
+					render: renderCustomButton,
+					update: updateCustomButton,
+					model: {
+						message: message,
+						up: up,
+						hover: hover,
+						down: down
+					}
+				  });
+	}
+
+	function renderCheckbox(model)
+	{
+		var node = Element.createNode('input');
+		node.type = 'checkbox';
+		node.checked = model.checked;
+		node.style.display = 'block';
+		node.style.pointerEvents = 'auto';
+		node.elm_handler = model.handler;
+		function change()
+		{
+			Signal.sendMessage(node.elm_handler(node.checked));
+		}
+		node.addEventListener('change', change);
+		return node;
+	}
+
+	function updateCheckbox(node, oldModel, newModel)
+	{
+		node.elm_handler = newModel.handler;
+		node.checked = newModel.checked;
+		return node;
+	}
+
+	function checkbox(handler, checked)
+	{
+		return A3(Element.newElement, 13, 13, {
+			ctor: 'Custom',
+			type: 'CheckBox',
+			render: renderCheckbox,
+			update: updateCheckbox,
+			model: { handler: handler, checked: checked }
+		});
+	}
+
+	function setRange(node, start, end, dir)
+	{
+		if (node.parentNode)
+		{
+			node.setSelectionRange(start, end, dir);
+		}
+		else
+		{
+			setTimeout(function() {node.setSelectionRange(start, end, dir); }, 0);
+		}
+	}
+
+	function updateIfNeeded(css, attribute, latestAttribute)
+	{
+		if (css[attribute] !== latestAttribute)
+		{
+			css[attribute] = latestAttribute;
+		}
+	}
+	function cssDimensions(dimensions)
+	{
+		return dimensions.top    + 'px ' +
+			   dimensions.right  + 'px ' +
+			   dimensions.bottom + 'px ' +
+			   dimensions.left   + 'px';
+	}
+	function updateFieldStyle(css, style)
+	{
+		updateIfNeeded(css, 'padding', cssDimensions(style.padding));
+
+		var outline = style.outline;
+		updateIfNeeded(css, 'border-width', cssDimensions(outline.width));
+		updateIfNeeded(css, 'border-color', Color.toCss(outline.color));
+		updateIfNeeded(css, 'border-radius', outline.radius + 'px');
+
+		var highlight = style.highlight;
+		if (highlight.width === 0)
+		{
+			css.outline = 'none';
+		}
+		else
+		{
+			updateIfNeeded(css, 'outline-width', highlight.width + 'px');
+			updateIfNeeded(css, 'outline-color', Color.toCss(highlight.color));
+		}
+
+		var textStyle = style.style;
+		updateIfNeeded(css, 'color', Color.toCss(textStyle.color));
+		if (textStyle.typeface.ctor !== '[]')
+		{
+			updateIfNeeded(css, 'font-family', Text.toTypefaces(textStyle.typeface));
+		}
+		if (textStyle.height.ctor !== 'Nothing')
+		{
+			updateIfNeeded(css, 'font-size', textStyle.height._0 + 'px');
+		}
+		updateIfNeeded(css, 'font-weight', textStyle.bold ? 'bold' : 'normal');
+		updateIfNeeded(css, 'font-style', textStyle.italic ? 'italic' : 'normal');
+		if (textStyle.line.ctor !== 'Nothing')
+		{
+			updateIfNeeded(css, 'text-decoration', Text.toLine(textStyle.line._0));
+		}
+	}
+
+	function renderField(model)
+	{
+		var field = Element.createNode('input');
+		updateFieldStyle(field.style, model.style);
+		field.style.borderStyle = 'solid';
+		field.style.pointerEvents = 'auto';
+
+		field.type = model.type;
+		field.placeholder = model.placeHolder;
+		field.value = model.content.string;
+
+		field.elm_handler = model.handler;
+		field.elm_old_value = field.value;
+
+		function inputUpdate(event)
+		{
+			var curr = field.elm_old_value;
+			var next = field.value;
+			if (curr === next)
+			{
+				return;
+			}
+
+			var direction = field.selectionDirection === 'forward' ? 'Forward' : 'Backward';
+			var start = field.selectionStart;
+			var end = field.selectionEnd;
+			field.value = field.elm_old_value;
+
+			Signal.sendMessage(field.elm_handler({
+				string: next,
+				selection: {
+					start: start,
+					end: end,
+					direction: { ctor: direction }
+				}
+			}));
+		}
+
+		field.addEventListener('input', inputUpdate);
+		field.addEventListener('focus', function() {
+			field.elm_hasFocus = true;
+		});
+		field.addEventListener('blur', function() {
+			field.elm_hasFocus = false;
+		});
+
+		return field;
+	}
+
+	function updateField(field, oldModel, newModel)
+	{
+		if (oldModel.style !== newModel.style)
+		{
+			updateFieldStyle(field.style, newModel.style);
+		}
+		field.elm_handler = newModel.handler;
+
+		field.type = newModel.type;
+		field.placeholder = newModel.placeHolder;
+		var value = newModel.content.string;
+		field.value = value;
+		field.elm_old_value = value;
+		if (field.elm_hasFocus)
+		{
+			var selection = newModel.content.selection;
+			var direction = selection.direction.ctor === 'Forward' ? 'forward' : 'backward';
+			setRange(field, selection.start, selection.end, direction);
+		}
+		return field;
+	}
+
+	function mkField(type)
+	{
+		function field(style, handler, placeHolder, content)
+		{
+			var padding = style.padding;
+			var outline = style.outline.width;
+			var adjustWidth = padding.left + padding.right + outline.left + outline.right;
+			var adjustHeight = padding.top + padding.bottom + outline.top + outline.bottom;
+			return A3(Element.newElement, 200, 30, {
+				ctor: 'Custom',
+				type: type + 'Field',
+				adjustWidth: adjustWidth,
+				adjustHeight: adjustHeight,
+				render: renderField,
+				update: updateField,
+				model: {
+					handler: handler,
+					placeHolder: placeHolder,
+					content: content,
+					style: style,
+					type: type
+				}
+			});
+		}
+		return F4(field);
+	}
+
+	function hoverable(handler, wrappedElement)
+	{
+		function onHover(bool)
+		{
+			Signal.sendMessage(handler(bool));
+		}
+		var element = wrappedElement._0;
+		var newProps = Utils.update(element.props, { hover: onHover });
+		return {
+			ctor: wrappedElement.ctor,
+			_0: {
+				props: newProps,
+				element: element.element
+			}
+		};
+	}
+
+	function clickable(message, wrappedElement)
+	{
+		function onClick()
+		{
+			Signal.sendMessage(message);
+		}
+		var element = wrappedElement._0;
+		var newProps = Utils.update(element.props, { click: onClick });
+		return {
+			ctor: wrappedElement.ctor,
+			_0: {
+				props: newProps,
+				element: element.element
+			}
+		};
+	}
+
+	return Elm.Native.Graphics.Input.values = {
+		button: F2(button),
+		customButton: F4(customButton),
+		checkbox: F2(checkbox),
+		dropDown: F2(dropDown),
+		field: mkField('text'),
+		email: mkField('email'),
+		password: mkField('password'),
+		hoverable: F2(hoverable),
+		clickable: F2(clickable)
+	};
+};
+Elm.Graphics = Elm.Graphics || {};
+Elm.Graphics.Input = Elm.Graphics.Input || {};
+Elm.Graphics.Input.make = function (_elm) {
+   "use strict";
+   _elm.Graphics = _elm.Graphics || {};
+   _elm.Graphics.Input = _elm.Graphics.Input || {};
+   if (_elm.Graphics.Input.values) return _elm.Graphics.Input.values;
+   var _U = Elm.Native.Utils.make(_elm),
+   $Graphics$Element = Elm.Graphics.Element.make(_elm),
+   $Native$Graphics$Input = Elm.Native.Graphics.Input.make(_elm),
+   $Signal = Elm.Signal.make(_elm);
+   var _op = {};
+   var clickable = $Native$Graphics$Input.clickable;
+   var hoverable = $Native$Graphics$Input.hoverable;
+   var dropDown = $Native$Graphics$Input.dropDown;
+   var checkbox = $Native$Graphics$Input.checkbox;
+   var customButton = $Native$Graphics$Input.customButton;
+   var button = $Native$Graphics$Input.button;
+   return _elm.Graphics.Input.values = {_op: _op
+                                       ,button: button
+                                       ,customButton: customButton
+                                       ,checkbox: checkbox
+                                       ,dropDown: dropDown
+                                       ,hoverable: hoverable
+                                       ,clickable: clickable};
+};Elm.Graphics = Elm.Graphics || {};
+Elm.Graphics.Input = Elm.Graphics.Input || {};
+Elm.Graphics.Input.Field = Elm.Graphics.Input.Field || {};
+Elm.Graphics.Input.Field.make = function (_elm) {
+   "use strict";
+   _elm.Graphics = _elm.Graphics || {};
+   _elm.Graphics.Input = _elm.Graphics.Input || {};
+   _elm.Graphics.Input.Field = _elm.Graphics.Input.Field || {};
+   if (_elm.Graphics.Input.Field.values) return _elm.Graphics.Input.Field.values;
+   var _U = Elm.Native.Utils.make(_elm),
+   $Color = Elm.Color.make(_elm),
+   $Graphics$Element = Elm.Graphics.Element.make(_elm),
+   $Native$Graphics$Input = Elm.Native.Graphics.Input.make(_elm),
+   $Signal = Elm.Signal.make(_elm),
+   $Text = Elm.Text.make(_elm);
+   var _op = {};
+   var email = $Native$Graphics$Input.email;
+   var password = $Native$Graphics$Input.password;
+   var field = $Native$Graphics$Input.field;
+   var Backward = {ctor: "Backward"};
+   var Forward = {ctor: "Forward"};
+   var Selection = F3(function (a,b,c) {    return {start: a,end: b,direction: c};});
+   var Content = F2(function (a,b) {    return {string: a,selection: b};});
+   var noContent = A2(Content,"",A3(Selection,0,0,Forward));
+   var Style = F4(function (a,b,c,d) {    return {padding: a,outline: b,highlight: c,style: d};});
+   var Highlight = F2(function (a,b) {    return {color: a,width: b};});
+   var noHighlight = A2(Highlight,$Color.blue,0);
+   var Outline = F3(function (a,b,c) {    return {color: a,width: b,radius: c};});
+   var Dimensions = F4(function (a,b,c,d) {    return {left: a,right: b,top: c,bottom: d};});
+   var uniformly = function (n) {    return A4(Dimensions,n,n,n,n);};
+   var noOutline = A3(Outline,$Color.grey,uniformly(0),0);
+   var defaultStyle = {padding: uniformly(4),outline: A3(Outline,$Color.grey,uniformly(1),2),highlight: A2(Highlight,$Color.blue,1),style: $Text.defaultStyle};
+   return _elm.Graphics.Input.Field.values = {_op: _op
+                                             ,field: field
+                                             ,password: password
+                                             ,email: email
+                                             ,noContent: noContent
+                                             ,defaultStyle: defaultStyle
+                                             ,noOutline: noOutline
+                                             ,noHighlight: noHighlight
+                                             ,uniformly: uniformly
+                                             ,Content: Content
+                                             ,Selection: Selection
+                                             ,Style: Style
+                                             ,Outline: Outline
+                                             ,Highlight: Highlight
+                                             ,Dimensions: Dimensions
+                                             ,Forward: Forward
+                                             ,Backward: Backward};
 };Elm.Native.Json = {};
 
 Elm.Native.Json.make = function(localRuntime) {
@@ -8832,7 +9383,7 @@ Elm.Config.make = function (_elm) {
    var rockImageUrl = "http://vignette2.wikia.nocookie.net/dumbway2sdie/images/3/3a/Asteroid2.png/revision/latest?cb=20141202091820";
    var backgroundImageUrl = "http://media.indiedb.com/images/articles/1/152/151754/auto/stars.png";
    var enemySpeed = 200;
-   var serverUrl = "https://star-shapes.herokuapp.com";
+   var serverUrl = "http://localhost:3009";
    var areaH = 450;
    var areaW = 700;
    return _elm.Config.values = {_op: _op
@@ -8958,66 +9509,92 @@ Elm.Enemies.make = function (_elm) {
                                 ,enemiesState: enemiesState
                                 ,getEnemies: getEnemies
                                 ,updateEnemyPos: updateEnemyPos};
-};Elm.Input = Elm.Input || {};
-Elm.Input.make = function (_elm) {
+};Elm.Outputs = Elm.Outputs || {};
+Elm.Outputs.make = function (_elm) {
    "use strict";
-   _elm.Input = _elm.Input || {};
-   if (_elm.Input.values) return _elm.Input.values;
+   _elm.Outputs = _elm.Outputs || {};
+   if (_elm.Outputs.values) return _elm.Outputs.values;
    var _U = Elm.Native.Utils.make(_elm),
    $Basics = Elm.Basics.make(_elm),
+   $Config = Elm.Config.make(_elm),
    $Debug = Elm.Debug.make(_elm),
-   $Json$Decode = Elm.Json.Decode.make(_elm),
    $Json$Encode = Elm.Json.Encode.make(_elm),
+   $Keyboard = Elm.Keyboard.make(_elm),
    $List = Elm.List.make(_elm),
    $Maybe = Elm.Maybe.make(_elm),
    $Result = Elm.Result.make(_elm),
+   $Signal = Elm.Signal.make(_elm),
+   $SocketIO = Elm.SocketIO.make(_elm),
+   $Task = Elm.Task.make(_elm);
+   var _op = {};
+   var encodeKeyboardArrows = function (record) {
+      return A2($Json$Encode.encode,
+      0,
+      $Json$Encode.object(_U.list([{ctor: "_Tuple2",_0: "y",_1: $Json$Encode.$int(record.y)},{ctor: "_Tuple2",_0: "x",_1: $Json$Encode.$int(record.x)}])));
+   };
+   var socket = A2($SocketIO.io,$Config.serverUrl,$SocketIO.defaultOptions);
+   var send = function (x) {    return A2($Task.andThen,socket,A2($SocketIO.emit,"SELF_UPDATE",x));};
+   var playerMove = A2($Signal.map,function (_p0) {    return send(encodeKeyboardArrows(_p0));},$Keyboard.arrows);
+   var KeyboardArrows = F2(function (a,b) {    return {y: a,x: b};});
+   return _elm.Outputs.values = {_op: _op
+                                ,KeyboardArrows: KeyboardArrows
+                                ,socket: socket
+                                ,send: send
+                                ,playerMove: playerMove
+                                ,encodeKeyboardArrows: encodeKeyboardArrows};
+};Elm.Inputs = Elm.Inputs || {};
+Elm.Inputs.make = function (_elm) {
+   "use strict";
+   _elm.Inputs = _elm.Inputs || {};
+   if (_elm.Inputs.values) return _elm.Inputs.values;
+   var _U = Elm.Native.Utils.make(_elm),
+   $Basics = Elm.Basics.make(_elm),
+   $Debug = Elm.Debug.make(_elm),
+   $Graphics$Input$Field = Elm.Graphics.Input.Field.make(_elm),
+   $Json$Decode = Elm.Json.Decode.make(_elm),
+   $List = Elm.List.make(_elm),
+   $Maybe = Elm.Maybe.make(_elm),
+   $Outputs = Elm.Outputs.make(_elm),
+   $Result = Elm.Result.make(_elm),
    $Signal = Elm.Signal.make(_elm);
    var _op = {};
-   var encodeO = function (record) {
-      return $Json$Encode.object(_U.list([{ctor: "_Tuple2",_0: "y",_1: $Json$Encode.$int(record.y)}
-                                         ,{ctor: "_Tuple2",_0: "x",_1: $Json$Encode.$int(record.x)}]));
-   };
-   var encodeH = function (record) {
-      return $Json$Encode.object(_U.list([{ctor: "_Tuple2",_0: "y",_1: $Json$Encode.$int(record.y)}
-                                         ,{ctor: "_Tuple2",_0: "x",_1: $Json$Encode.$int(record.x)}]));
-   };
-   var encodeInput = function (record) {
-      return $Json$Encode.object(_U.list([{ctor: "_Tuple2",_0: "h",_1: encodeH(record.h)}
-                                         ,{ctor: "_Tuple2",_0: "dt",_1: $Json$Encode.$float(record.dt)}
-                                         ,{ctor: "_Tuple2",_0: "o",_1: encodeO(record.o)}]));
-   };
+   var decodeKeyboardArrows = A3($Json$Decode.object2,
+   $Outputs.KeyboardArrows,
+   A2($Json$Decode._op[":="],"y",$Json$Decode.$int),
+   A2($Json$Decode._op[":="],"x",$Json$Decode.$int));
    var Input = F3(function (a,b,c) {    return {h: a,dt: b,o: c};});
-   var O = F2(function (a,b) {    return {y: a,x: b};});
-   var decodeO = A3($Json$Decode.object2,O,A2($Json$Decode._op[":="],"y",$Json$Decode.$int),A2($Json$Decode._op[":="],"x",$Json$Decode.$int));
-   var H = F2(function (a,b) {    return {y: a,x: b};});
-   var decodeH = A3($Json$Decode.object2,H,A2($Json$Decode._op[":="],"y",$Json$Decode.$int),A2($Json$Decode._op[":="],"x",$Json$Decode.$int));
    var decodeInput = A4($Json$Decode.object3,
    Input,
-   A2($Json$Decode._op[":="],"h",decodeH),
+   A2($Json$Decode._op[":="],"h",decodeKeyboardArrows),
    A2($Json$Decode._op[":="],"dt",$Json$Decode.$float),
-   A2($Json$Decode._op[":="],"o",decodeO));
+   A2($Json$Decode._op[":="],"o",decodeKeyboardArrows));
    var responses = $Signal.mailbox("{dt:42,h:{x:0,y:0},o:{x:0,y:0}}");
-   var initialInput = {h: {x: 0,y: 0},dt: $Basics.toFloat(40),o: {x: 0,y: 0}};
-   var responsesAsObjects = A2($Signal.map,
-   function (response) {
-      return A2($Result.withDefault,initialInput,A2($Json$Decode.decodeString,decodeInput,response));
-   },
-   responses.signal);
-   var input = responsesAsObjects;
-   return _elm.Input.values = {_op: _op
-                              ,input: input
-                              ,initialInput: initialInput
-                              ,responsesAsObjects: responsesAsObjects
-                              ,responses: responses
-                              ,H: H
-                              ,O: O
-                              ,Input: Input
-                              ,decodeH: decodeH
-                              ,decodeO: decodeO
-                              ,decodeInput: decodeInput
-                              ,encodeH: encodeH
-                              ,encodeO: encodeO
-                              ,encodeInput: encodeInput};
+   var nameMailbox = $Signal.mailbox($Graphics$Input$Field.noContent);
+   var initialResponse = {h: {x: 0,y: 0},dt: $Basics.toFloat(40),o: {x: 0,y: 0}};
+   var Quit = {ctor: "Quit"};
+   var SubmitName = {ctor: "SubmitName"};
+   var NoOp = {ctor: "NoOp"};
+   var actionsMailbox = $Signal.mailbox(NoOp);
+   var input = A4($Signal.map3,
+   F3(function (response,name,action) {
+      var inputRecord = A2($Result.withDefault,initialResponse,A2($Json$Decode.decodeString,decodeInput,response));
+      return {ctor: "_Tuple3",_0: inputRecord,_1: name,_2: action};
+   }),
+   responses.signal,
+   nameMailbox.signal,
+   actionsMailbox.signal);
+   return _elm.Inputs.values = {_op: _op
+                               ,NoOp: NoOp
+                               ,SubmitName: SubmitName
+                               ,Quit: Quit
+                               ,input: input
+                               ,initialResponse: initialResponse
+                               ,nameMailbox: nameMailbox
+                               ,actionsMailbox: actionsMailbox
+                               ,responses: responses
+                               ,Input: Input
+                               ,decodeKeyboardArrows: decodeKeyboardArrows
+                               ,decodeInput: decodeInput};
 };Elm.StarShapes = Elm.StarShapes || {};
 Elm.StarShapes.make = function (_elm) {
    "use strict";
@@ -9031,12 +9608,13 @@ Elm.StarShapes.make = function (_elm) {
    $Enemies = Elm.Enemies.make(_elm),
    $Graphics$Collage = Elm.Graphics.Collage.make(_elm),
    $Graphics$Element = Elm.Graphics.Element.make(_elm),
-   $Input = Elm.Input.make(_elm),
-   $Json$Encode = Elm.Json.Encode.make(_elm),
-   $Keyboard = Elm.Keyboard.make(_elm),
+   $Graphics$Input = Elm.Graphics.Input.make(_elm),
+   $Graphics$Input$Field = Elm.Graphics.Input.Field.make(_elm),
+   $Inputs = Elm.Inputs.make(_elm),
    $List = Elm.List.make(_elm),
    $Maybe = Elm.Maybe.make(_elm),
    $Movement = Elm.Movement.make(_elm),
+   $Outputs = Elm.Outputs.make(_elm),
    $Result = Elm.Result.make(_elm),
    $Signal = Elm.Signal.make(_elm),
    $SocketIO = Elm.SocketIO.make(_elm),
@@ -9044,18 +9622,35 @@ Elm.StarShapes.make = function (_elm) {
    $Text = Elm.Text.make(_elm),
    $Window = Elm.Window.make(_elm);
    var _op = {};
-   var encodeKeyboard = function (_p0) {
-      var _p1 = _p0;
-      return A2($Json$Encode.encode,
-      0,
-      $Json$Encode.object(_U.list([{ctor: "_Tuple2",_0: "x",_1: $Json$Encode.$int(_p1.x)},{ctor: "_Tuple2",_0: "y",_1: $Json$Encode.$int(_p1.y)}])));
-   };
+   var outgoing = Elm.Native.Task.make(_elm).performSignal("outgoing",$Outputs.playerMove);
+   var inputNameView = F2(function (_p1,_p0) {
+      var _p2 = _p1;
+      var _p3 = _p0;
+      var _p5 = _p3.name;
+      var _p4 = A2($Debug.log,"INPUT NAME",_p5);
+      return A4($Graphics$Element.container,
+      _p2._0,
+      _p2._1,
+      $Graphics$Element.middle,
+      A3($Graphics$Collage.collage,
+      $Config.areaW,
+      $Config.areaH,
+      _U.list([$Graphics$Collage.toForm(A4($Graphics$Input$Field.field,
+              $Graphics$Input$Field.defaultStyle,
+              $Signal.message($Inputs.nameMailbox.address),
+              "Name",
+              _p5))
+              ,A2($Graphics$Collage.moveX,
+              200,
+              $Graphics$Collage.toForm(A2($Graphics$Input.button,A2($Signal.message,$Inputs.actionsMailbox.address,$Inputs.SubmitName),"CHOOSE")))])));
+   });
+   var updateName = F2(function (name,game) {    return _U.update(game,{name: name});});
    var updateHeroPos = F2(function (dt,hero) {
-      var _p2 = hero;
-      var x = _p2.x;
-      var y = _p2.y;
-      var vx = _p2.vx;
-      var vy = _p2.vy;
+      var _p6 = hero;
+      var x = _p6.x;
+      var y = _p6.y;
+      var vx = _p6.vx;
+      var vy = _p6.vy;
       var updatedX = A2($Movement.isAtBorder,$Config.areaW,x) ? A4($Movement.invertPosition,dt,$Config.areaW,vx,x) : A3($Basics.clamp,
       (0 - $Config.areaW) / 2,
       $Config.areaW / 2,
@@ -9067,19 +9662,19 @@ Elm.StarShapes.make = function (_elm) {
       return _U.update(hero,{x: updatedX,y: updatedY});
    });
    var updatePosition = F2(function (dt,game) {
-      var _p3 = game;
-      var hero = _p3.hero;
-      var enemiesState = _p3.enemiesState;
-      var opponent = _p3.opponent;
+      var _p7 = game;
+      var hero = _p7.hero;
+      var enemiesState = _p7.enemiesState;
+      var opponent = _p7.opponent;
       var updatedEnemies = A2($List.map,$Enemies.updateEnemyPos(dt),enemiesState.enemies);
       var updatedHero = A2(updateHeroPos,dt,hero);
       var updatedOpponent = A2(updateHeroPos,dt,opponent);
       return _U.update(game,{hero: updatedHero,opponent: updatedOpponent,enemiesState: _U.update(enemiesState,{enemies: updatedEnemies})});
    });
    var updateEnemies = function (game) {
-      var _p4 = game;
-      var enemiesState = _p4.enemiesState;
-      var hero = _p4.hero;
+      var _p8 = game;
+      var enemiesState = _p8.enemiesState;
+      var hero = _p8.hero;
       var newEnemies = _U.cmp($List.length(enemiesState.enemies),5) > -1 ? enemiesState : A3($Enemies.getEnemies,
       30,
       {ctor: "_Tuple2",_0: 4,_1: hero.rad + 2.5},
@@ -9087,18 +9682,20 @@ Elm.StarShapes.make = function (_elm) {
       var nextEnemiesState = _U.cmp($List.length(enemiesState.enemies),5) > -1 ? enemiesState : newEnemies;
       return _U.update(game,{enemiesState: nextEnemiesState});
    };
-   var newVelocity = F3(function (_p5,opp,game) {
-      var _p6 = _p5;
-      var _p9 = _p6.y;
-      var _p8 = _p6.x;
-      var _p7 = game;
-      var hero = _p7.hero;
-      var opponent = _p7.opponent;
+   var newVelocity = F3(function (_p9,opp,game) {
+      var _p10 = _p9;
+      var _p13 = _p10.y;
+      var _p12 = _p10.x;
+      var _p11 = game;
+      var hero = _p11.hero;
+      var opponent = _p11.opponent;
       var scale = 6;
-      var newVel = function (n) {    return _U.eq(_p8,0) || _U.eq(_p9,0) ? scale * $Basics.toFloat(n) : scale * $Basics.toFloat(n) / $Basics.sqrt(2);};
-      return _U.update(game,{opponent: _U.update(opponent,{vx: newVel(opp.x),vy: newVel(opp.y)}),hero: _U.update(hero,{vx: newVel(_p8),vy: newVel(_p9)})});
+      var newVel = function (n) {    return _U.eq(_p12,0) || _U.eq(_p13,0) ? scale * $Basics.toFloat(n) : scale * $Basics.toFloat(n) / $Basics.sqrt(2);};
+      return _U.update(game,{opponent: _U.update(opponent,{vx: newVel(opp.x),vy: newVel(opp.y)}),hero: _U.update(hero,{vx: newVel(_p12),vy: newVel(_p13)})});
    });
-   var Game = F4(function (a,b,c,d) {    return {hero: a,opponent: b,enemiesState: c,score: d};});
+   var Game = F6(function (a,b,c,d,e,f) {    return {hero: a,opponent: b,enemiesState: c,score: d,name: e,view: f};});
+   var GameView = {ctor: "GameView"};
+   var PlayerNameForm = {ctor: "PlayerNameForm"};
    var backgroundPos = {ctor: "_Tuple2",_0: $Config.areaW,_1: $Config.areaH};
    var opponentColor = $Color.purple;
    var heroColor = $Color.white;
@@ -9106,25 +9703,40 @@ Elm.StarShapes.make = function (_elm) {
    var Model = F6(function (a,b,c,d,e,f) {    return {x: a,y: b,vx: c,vy: d,rad: e,color: f};});
    var hero = A6(Model,0,0,0,0,40,heroColor);
    var opponent = A6(Model,0,0,0,0,40,opponentColor);
-   var game = {opponent: opponent,hero: hero,enemiesState: A3($Enemies.getEnemies,10,{ctor: "_Tuple2",_0: 4,_1: 30},$Enemies.enemiesState),score: 0};
-   var vecSub = F2(function (_p11,_p10) {    var _p12 = _p11;var _p13 = _p10;return {ctor: "_Tuple2",_0: _p12._0 - _p13._0,_1: _p12._1 - _p13._1};});
-   var vecLen = function (_p14) {    var _p15 = _p14;var _p17 = _p15._1;var _p16 = _p15._0;return $Basics.sqrt(_p16 * _p16 + _p17 * _p17);};
+   var gameState = {opponent: opponent
+                   ,hero: hero
+                   ,enemiesState: A3($Enemies.getEnemies,10,{ctor: "_Tuple2",_0: 4,_1: 30},$Enemies.enemiesState)
+                   ,score: 0
+                   ,name: $Graphics$Input$Field.noContent
+                   ,view: PlayerNameForm};
+   var selectView = F2(function (action,game) {
+      var _p14 = action;
+      switch (_p14.ctor)
+      {case "NoOp": return _U.update(game,{view: PlayerNameForm});
+         case "SubmitName": return _U.update(game,{view: GameView});
+         default: return _U.update(gameState,{view: PlayerNameForm,name: game.name});}
+   });
+   var vecSub = F2(function (_p16,_p15) {    var _p17 = _p16;var _p18 = _p15;return {ctor: "_Tuple2",_0: _p17._0 - _p18._0,_1: _p17._1 - _p18._1};});
+   var vecLen = function (_p19) {    var _p20 = _p19;var _p22 = _p20._1;var _p21 = _p20._0;return $Basics.sqrt(_p21 * _p21 + _p22 * _p22);};
    var getListOfCollidingEnemies = F2(function (hero,enemies) {
       return A2($List.filter,
-      function (_p18) {
-         var _p19 = _p18;
-         var _p20 = _p19.rad;
-         return _U.cmp(_p20,hero.rad) > 0 && _U.cmp(vecLen(A2(vecSub,{ctor: "_Tuple2",_0: hero.x,_1: hero.y},{ctor: "_Tuple2",_0: _p19.x,_1: _p19.y})),
-         hero.rad + _p20) < 0;
+      function (_p23) {
+         var _p24 = _p23;
+         var _p25 = _p24.rad;
+         return _U.cmp(_p25,hero.rad) > 0 && _U.cmp(vecLen(A2(vecSub,{ctor: "_Tuple2",_0: hero.x,_1: hero.y},{ctor: "_Tuple2",_0: _p24.x,_1: _p24.y})),
+         hero.rad + _p25) < 0;
       },
       enemies);
    });
    var isPlayerCollided = F2(function (player,enemies) {    return _U.cmp($List.length(A2(getListOfCollidingEnemies,player,enemies)),0) > 0;});
-   var view = F2(function (_p22,_p21) {
-      var _p23 = _p22;
-      var _p24 = _p21;
-      var _p33 = _p24.opponent;
-      var _p32 = _p24.hero;
+   var gameView = F2(function (_p27,_p26) {
+      var _p28 = _p27;
+      var _p29 = _p26;
+      var _p38 = _p29.opponent;
+      var _p37 = _p29.hero;
+      var quitButton = A2($Graphics$Collage.move,
+      {ctor: "_Tuple2",_0: 290,_1: -200},
+      $Graphics$Collage.toForm(A2($Graphics$Input.button,A2($Signal.message,$Inputs.actionsMailbox.address,$Inputs.Quit),"QUIT")));
       var solidChar = $Graphics$Collage.dotted($Color.charcoal);
       var lineStyle = _U.update(solidChar,{width: 9});
       var pathForm = A2($Graphics$Collage.traced,
@@ -9132,75 +9744,88 @@ Elm.StarShapes.make = function (_elm) {
       $Graphics$Collage.path(_U.list([{ctor: "_Tuple2",_0: -140,_1: -140},{ctor: "_Tuple2",_0: -200,_1: 60},{ctor: "_Tuple2",_0: -40,_1: 100}])));
       var textScore = A2($Graphics$Collage.move,
       {ctor: "_Tuple2",_0: 65 - $Config.areaW / 2,_1: 30 - $Config.areaH / 2},
-      $Graphics$Collage.text(A2($Text.style,textStyle,$Text.fromString(A2($Basics._op["++"],"Score ",$Basics.toString(_p24.score))))));
+      $Graphics$Collage.text(A2($Text.style,textStyle,$Text.fromString(A2($Basics._op["++"],"Score ",$Basics.toString(_p29.score))))));
       var opponentName = A2($Graphics$Collage.move,
-      {ctor: "_Tuple2",_0: _p33.x,_1: _p33.y},
+      {ctor: "_Tuple2",_0: _p38.x,_1: _p38.y},
       $Graphics$Collage.text(A2($Text.style,textStyle,$Text.fromString("P2"))));
       var heroName = A2($Graphics$Collage.move,
-      {ctor: "_Tuple2",_0: _p32.x,_1: _p32.y},
-      $Graphics$Collage.text(A2($Text.style,textStyle,$Text.fromString("P1"))));
+      {ctor: "_Tuple2",_0: _p37.x,_1: _p37.y},
+      $Graphics$Collage.text(A2($Text.style,textStyle,$Text.fromString(_p29.name.string))));
       var background = $Graphics$Collage.toForm(A3($Graphics$Element.image,$Config.areaW,$Config.areaH,$Config.backgroundImageUrl));
-      var _p25 = backgroundPos;
-      var bgX = _p25._0;
-      var bgY = _p25._1;
-      var opponentLineColor = $Graphics$Collage.dotted(_p33.color);
+      var _p30 = backgroundPos;
+      var bgX = _p30._0;
+      var bgY = _p30._1;
+      var opponentLineColor = $Graphics$Collage.dotted(_p38.color);
       var dottedOpponentLine = _U.update(opponentLineColor,{width: 4});
       var opponentForm = A2($Graphics$Collage.move,
-      {ctor: "_Tuple2",_0: _p33.x,_1: _p33.y},
-      A2($Graphics$Collage.outlined,dottedOpponentLine,$Graphics$Collage.circle(_p33.rad)));
-      var heroLineColor = $Graphics$Collage.dotted(_p32.color);
+      {ctor: "_Tuple2",_0: _p38.x,_1: _p38.y},
+      A2($Graphics$Collage.outlined,dottedOpponentLine,$Graphics$Collage.circle(_p38.rad)));
+      var heroLineColor = $Graphics$Collage.dotted(_p37.color);
       var dottedHeroLine = _U.update(heroLineColor,{width: 4});
       var heroForm = A2($Graphics$Collage.move,
-      {ctor: "_Tuple2",_0: _p32.x,_1: _p32.y},
-      A2($Graphics$Collage.outlined,dottedHeroLine,$Graphics$Collage.circle(_p32.rad)));
-      var _p26 = _p24.enemiesState;
-      var enemies = _p26.enemies;
-      var isPlayerCollidedWithEnemy = A2(isPlayerCollided,_p32,enemies);
+      {ctor: "_Tuple2",_0: _p37.x,_1: _p37.y},
+      A2($Graphics$Collage.outlined,dottedHeroLine,$Graphics$Collage.circle(_p37.rad)));
+      var _p31 = _p29.enemiesState;
+      var enemies = _p31.enemies;
+      var isPlayerCollidedWithEnemy = A2(isPlayerCollided,_p37,enemies);
       var enemyForms = A2($List.map,
-      function (_p27) {
-         var _p28 = _p27;
-         var _p31 = _p28.y;
-         var _p30 = _p28.x;
-         var _p29 = _p28.rad;
-         var rock = $Graphics$Collage.toForm(A3($Graphics$Element.image,$Basics.round(_p29),$Basics.round(_p29),$Config.rockImageUrl));
-         var dottedEnemyLine = _U.update(dottedHeroLine,{color: _p28.color,width: 12});
-         var enemyForm = _U.cmp(_p32.rad,_p29) > 0 ? A2($Graphics$Collage.move,
-         {ctor: "_Tuple2",_0: _p30,_1: _p31},
+      function (_p32) {
+         var _p33 = _p32;
+         var _p36 = _p33.y;
+         var _p35 = _p33.x;
+         var _p34 = _p33.rad;
+         var rock = $Graphics$Collage.toForm(A3($Graphics$Element.image,$Basics.round(_p34),$Basics.round(_p34),$Config.rockImageUrl));
+         var dottedEnemyLine = _U.update(dottedHeroLine,{color: _p33.color,width: 12});
+         var enemyForm = _U.cmp(_p37.rad,_p34) > 0 ? A2($Graphics$Collage.move,
+         {ctor: "_Tuple2",_0: _p35,_1: _p36},
          rock) : $Graphics$Collage.group(_U.list([A2($Graphics$Collage.move,
-                                                 {ctor: "_Tuple2",_0: _p30,_1: _p31},
-                                                 A2($Graphics$Collage.outlined,dottedEnemyLine,$Graphics$Collage.circle(_p29)))
+                                                 {ctor: "_Tuple2",_0: _p35,_1: _p36},
+                                                 A2($Graphics$Collage.outlined,dottedEnemyLine,$Graphics$Collage.circle(_p34)))
                                                  ,A2($Graphics$Collage.move,
-                                                 {ctor: "_Tuple2",_0: _p30,_1: _p31},
+                                                 {ctor: "_Tuple2",_0: _p35,_1: _p36},
                                                  $Graphics$Collage.text(A2($Text.style,textStyle,$Text.fromString("Alien"))))]));
          return enemyForm;
       },
       enemies);
       return A4($Graphics$Element.container,
-      _p23._0,
-      _p23._1,
+      _p28._0,
+      _p28._1,
       $Graphics$Element.middle,
       A3($Graphics$Collage.collage,
       $Config.areaW,
       $Config.areaH,
-      $List.concat(_U.list([_U.list([background,pathForm,opponentForm,opponentName,heroForm,heroName,textScore]),enemyForms]))));
+      $List.concat(_U.list([_U.list([background,pathForm,opponentForm,opponentName,heroForm,heroName,textScore]),enemyForms,_U.list([quitButton])]))));
+   });
+   var router = F2(function (_p39,state) {
+      var _p40 = _p39;
+      var _p44 = _p40._0;
+      var _p43 = _p40._1;
+      var _p41 = state;
+      var view = _p41.view;
+      var _p42 = view;
+      if (_p42.ctor === "PlayerNameForm") {
+            return A2(inputNameView,{ctor: "_Tuple2",_0: _p44,_1: _p43},state);
+         } else {
+            return A2(gameView,{ctor: "_Tuple2",_0: _p44,_1: _p43},state);
+         }
    });
    var detectCollision = function (game) {
-      var _p34 = game;
-      var enemiesState = _p34.enemiesState;
-      var score = _p34.score;
-      var hero = _p34.hero;
-      var opponent = _p34.opponent;
-      var _p35 = enemiesState;
-      var enemies = _p35.enemies;
+      var _p45 = game;
+      var enemiesState = _p45.enemiesState;
+      var score = _p45.score;
+      var hero = _p45.hero;
+      var opponent = _p45.opponent;
+      var _p46 = enemiesState;
+      var enemies = _p46.enemies;
       var enemiesToReturn = A2($List.filter,
-      function (_p36) {
-         var _p37 = _p36;
-         var _p40 = _p37.y;
-         var _p39 = _p37.x;
-         var _p38 = _p37.rad;
-         return _U.cmp(hero.rad,_p38) > 0 ? _U.cmp(vecLen(A2(vecSub,{ctor: "_Tuple2",_0: hero.x,_1: hero.y},{ctor: "_Tuple2",_0: _p39,_1: _p40})),
-         hero.rad + _p38) > 0 && _U.cmp(vecLen(A2(vecSub,{ctor: "_Tuple2",_0: opponent.x,_1: opponent.y},{ctor: "_Tuple2",_0: _p39,_1: _p40})),
-         opponent.rad + _p38) > 0 : true;
+      function (_p47) {
+         var _p48 = _p47;
+         var _p51 = _p48.y;
+         var _p50 = _p48.x;
+         var _p49 = _p48.rad;
+         return _U.cmp(hero.rad,_p49) > 0 ? _U.cmp(vecLen(A2(vecSub,{ctor: "_Tuple2",_0: hero.x,_1: hero.y},{ctor: "_Tuple2",_0: _p50,_1: _p51})),
+         hero.rad + _p49) > 0 && _U.cmp(vecLen(A2(vecSub,{ctor: "_Tuple2",_0: opponent.x,_1: opponent.y},{ctor: "_Tuple2",_0: _p50,_1: _p51})),
+         opponent.rad + _p49) > 0 : true;
       },
       enemies);
       var damageAgainstPlayer = A2(getListOfCollidingEnemies,hero,enemiesToReturn);
@@ -9213,20 +9838,15 @@ Elm.StarShapes.make = function (_elm) {
       ,score: $Basics.toFloat($Basics.floor(score + $Basics.toFloat($List.length(enemies)) - ($Basics.toFloat($List.length(enemiesToReturn)) + $Basics.toFloat($List.length(damageAgainstPlayer)) / 100)))
       ,enemiesState: _U.update(enemiesState,{enemies: enemiesToReturn})});
    };
-   var update = F2(function (_p41,game) {
-      var _p42 = _p41;
-      return detectCollision(A2(updatePosition,_p42.dt,A3(newVelocity,_p42.h,_p42.o,updateEnemies(game))));
+   var update = F2(function (_p52,game) {
+      var _p53 = _p52;
+      return A2(selectView,
+      _p53._2,
+      A2(updateName,_p53._1,detectCollision(A2(updatePosition,_p53._0.dt,A3(newVelocity,_p53._0.h,_p53._0.o,updateEnemies(game))))));
    });
-   var main = A3($Signal.map2,view,$Window.dimensions,A3($Signal.foldp,update,game,$Input.input));
-   var socket = A2($SocketIO.io,$Config.serverUrl,$SocketIO.defaultOptions);
-   var response = Elm.Native.Task.make(_elm).perform(A2($Task.andThen,socket,A2($SocketIO.on,"OPPONENT_UPDATE",$Input.responses.address)));
-   var send = function (x) {    return A2($Task.andThen,socket,A2($SocketIO.emit,"SELF_UPDATE",x));};
-   var playerMove = A2($Signal.map,function (_p43) {    return send(encodeKeyboard(_p43));},$Keyboard.arrows);
-   var outgoing = Elm.Native.Task.make(_elm).performSignal("outgoing",playerMove);
-   var PositionData = F2(function (a,b) {    return {x: a,y: b};});
+   var main = A3($Signal.map2,router,$Window.dimensions,A3($Signal.foldp,update,gameState,$Inputs.input));
+   var response = Elm.Native.Task.make(_elm).perform(A2($Task.andThen,$Outputs.socket,A2($SocketIO.on,"OPPONENT_UPDATE",$Inputs.responses.address)));
    return _elm.StarShapes.values = {_op: _op
-                                   ,PositionData: PositionData
-                                   ,socket: socket
                                    ,vecLen: vecLen
                                    ,vecSub: vecSub
                                    ,Model: Model
@@ -9236,8 +9856,10 @@ Elm.StarShapes.make = function (_elm) {
                                    ,backgroundPos: backgroundPos
                                    ,hero: hero
                                    ,opponent: opponent
+                                   ,PlayerNameForm: PlayerNameForm
+                                   ,GameView: GameView
                                    ,Game: Game
-                                   ,game: game
+                                   ,gameState: gameState
                                    ,update: update
                                    ,newVelocity: newVelocity
                                    ,updateEnemies: updateEnemies
@@ -9246,9 +9868,10 @@ Elm.StarShapes.make = function (_elm) {
                                    ,getListOfCollidingEnemies: getListOfCollidingEnemies
                                    ,isPlayerCollided: isPlayerCollided
                                    ,detectCollision: detectCollision
-                                   ,view: view
-                                   ,main: main
-                                   ,encodeKeyboard: encodeKeyboard
-                                   ,send: send
-                                   ,playerMove: playerMove};
+                                   ,updateName: updateName
+                                   ,selectView: selectView
+                                   ,inputNameView: inputNameView
+                                   ,router: router
+                                   ,gameView: gameView
+                                   ,main: main};
 };</script></head><body><script type="text/javascript">Elm.fullscreen(Elm.StarShapes)</script></body></html>
