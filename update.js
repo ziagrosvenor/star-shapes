@@ -3,7 +3,8 @@ import {zip, curry, map, merge} from "ramda"
 
 const initPlayerInput = {
   x: 0,
-  y: 0
+  y: 0,
+  name: ""
 }
 
 const initState = {

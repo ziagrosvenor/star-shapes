@@ -7,22 +7,22 @@ import Signal
 import SocketIO exposing (io, defaultOptions, emit, on)
 import Keyboard
 
-type alias KeyboardArrows =
-    { y : Int
-    , x : Int
-    }
+import Inputs exposing (nameMailbox)
 
 socket = io serverUrl defaultOptions
 send x = 
   socket `andThen` emit "SELF_UPDATE" x
 
-playerMove : Signal (Task x ())
-playerMove = Signal.map (encodeKeyboardArrows>>send) Keyboard.arrows 
+encodeDataAndSend : Signal (Task x ())
+encodeDataAndSend = Signal.map (encodeData>>send) outputs 
 
-encodeKeyboardArrows record =
+outputs = (Signal.map2 (,) Keyboard.arrows nameMailbox.signal)
+
+encodeData (record, name) =
   Json.Encode.encode 0 (
     Json.Encode.object
         [ ("y", Json.Encode.int record.y)
         , ("x", Json.Encode.int record.x)
+        , ("name", Json.Encode.string name.string)
         ]
   )

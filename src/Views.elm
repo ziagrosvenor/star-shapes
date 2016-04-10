@@ -4,6 +4,7 @@ import Color exposing (..)
 import Graphics.Collage exposing (..)
 import Graphics.Element exposing (..)
 import Graphics.Input.Field exposing (..)
+import Animation exposing (..)
 import Graphics.Input exposing (..)
 import Text
 import List exposing (..)
@@ -80,9 +81,8 @@ inputNameView (w, h) {name} =
       [toForm (field defaultStyle (Signal.message nameMailbox.address) "Name" name), 
        moveX 200 (toForm (button (Signal.message actionsMailbox.address SubmitName) "CHOOSE"))
       ]
-  
 
-gameView (w,h) {hero, opponent, enemiesState, score, name} =
+gameView (w,h) {hero, opponent, enemiesState, score, name, r, theta, clock} =
   let
     {enemies} = enemiesState
     heroLineColor = dotted hero.color
@@ -102,8 +102,17 @@ gameView (w,h) {hero, opponent, enemiesState, score, name} =
     background = toForm (image areaW areaH backgroundImageUrl)
     isPlayerCollidedWithEnemy = isPlayerCollided hero enemies
 
-    heroForm = circle hero.rad |> outlined (dottedHeroLine) |> move (hero.x, hero.y)
-    heroName = text (Text.style textStyle (Text.fromString name.string)) |> move (hero.x, hero.y)
+    angle = animate clock theta
+    radius = animate clock r
+
+    heroForm = group [
+      circle hero.rad
+        |> outlined (dottedHeroLine)
+        |> move (hero.x, hero.y),
+      text (Text.style textStyle (Text.fromString name.string)) 
+        |> move (hero.x, hero.y)
+        |> rotate angle
+    ]
 
     opponentForm = circle opponent.rad |> outlined (dottedOpponentLine) |> move (opponent.x, opponent.y)
     opponentName = text (Text.style textStyle (Text.fromString "P2")) |> move (opponent.x, opponent.y)
@@ -116,7 +125,6 @@ gameView (w,h) {hero, opponent, enemiesState, score, name} =
           opponentForm, 
           opponentName,
           heroForm,
-          heroName,
           (scoreText score)
         ],
         (enemyForms hero enemies),

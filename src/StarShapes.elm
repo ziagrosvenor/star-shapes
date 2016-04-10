@@ -9,6 +9,7 @@ import Window
 import Task exposing (Task, andThen)
 import List exposing (..)
 import SocketIO exposing (io, defaultOptions, emit, on)
+import Animation exposing (..)
 
 -- GAME MODULES
 import Config exposing (..)
@@ -26,7 +27,10 @@ type alias Game = {
   enemiesState: Enemies,
   score: Float,
   name: Content,
-  view: View
+  view: View,
+  theta: Animation,
+  r: Animation,
+  clock: Time
 }
 
 gameState = {
@@ -35,7 +39,10 @@ gameState = {
   enemiesState = initialEnemies,
   score = 0,
   name = noContent,
-  view = PlayerNameForm
+  view = PlayerNameForm,
+  theta = (static 0),
+  r = (static 0),
+  clock = 0
  }
 
 main : Signal Element
@@ -43,15 +50,38 @@ main =
   Signal.map2 router Window.dimensions 
     (Signal.foldp update gameState input)
 
-update : (Input, Content, Action) -> Game -> Game
-update ({dt, h, o}, name, action) game =
+update : (Time, KeyboardArrows, Input, Content, Action) -> Game -> Game
+update (dt, playerOne, {o}, name, action) game =
   game
+    |> updateClock dt 
     |> updateEnemies
-    |> newVelocity h o
+    |> newVelocity playerOne o
     |> updatePosition dt
     |> detectCollision
+    |> triggerAnimationIfCollision dt
     |> updateName name 
     |> selectView action
+
+triggerAnimationIfCollision : Time -> Game -> Game
+triggerAnimationIfCollision dt game =
+  let
+    {enemies} = game.enemiesState
+    isCollided = isPlayerCollided game.hero enemies
+  in
+    case isCollided of
+      True -> 
+        let 
+          theta = retarget game.clock 180 game.theta
+            |> speed 0.013
+
+          r = retarget game.clock (min 360 360) game.r
+            |> speed 0.4
+
+          dur = max (getDuration theta) (getDuration r)
+
+        in {game | theta = theta |> duration dur, r = r |> duration dur}
+        
+      False -> game
 
 selectView : Action -> Game -> Game
 selectView action game =
@@ -74,7 +104,7 @@ selectView action game =
       }
 
 port outgoing : Signal (Task a ())
-port outgoing = playerMove 
+port outgoing = encodeDataAndSend 
 
 port response : Task String () 
 port response = socket `andThen` on "OPPONENT_UPDATE" responses.address
@@ -82,7 +112,7 @@ port response = socket `andThen` on "OPPONENT_UPDATE" responses.address
 newVelocity : { x:Int, y:Int } -> { x:Int, y:Int } -> Game -> Game
 newVelocity {x,y} opp game =
   let
-    scale = 6
+    scale = 9
     {hero, opponent} = game
 
     newVel n =
@@ -108,22 +138,17 @@ updateEnemies : Game -> Game
 updateEnemies game =
   let
     {enemiesState, hero} = game
-
-    newEnemies = if length enemiesState.enemies >= 5 then
-      enemiesState
-    else
-      (getEnemies 30 (4, hero.rad + 2.5) enemiesState)
-
-    nextEnemiesState = if length enemiesState.enemies >= 5 then
-      enemiesState
-    else
-      newEnemies
-
+    isEndOfRound = (length enemiesState.enemies <= 5)
   in
-    {
-      game |
-        enemiesState = nextEnemiesState
-    }
+    case isEndOfRound of
+      True ->
+        {
+          game |
+            enemiesState = (getEnemies 30 (4, hero.rad + 2.5) enemiesState),
+            theta = gameState.theta,
+            r = gameState.r
+        }
+      False -> game
 
 updateHeroPos : Float -> Model -> Model
 updateHeroPos dt hero =
@@ -153,7 +178,6 @@ updatePosition dt game =
     updatedEnemies = map (updateEnemyPos dt) enemiesState.enemies
     updatedHero = updateHeroPos dt hero
     updatedOpponent = updateHeroPos dt opponent 
-
   in
     {
       game |
@@ -213,3 +237,9 @@ updateName name game =
       name = name
   }
 
+updateClock : Time -> Game -> Game
+updateClock dt game =
+  {
+    game |
+      clock = game.clock + dt
+  }
