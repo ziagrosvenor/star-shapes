@@ -9261,6 +9261,163 @@ Elm.Window.make = function (_elm) {
    var width = A2($Signal.map,$Basics.fst,dimensions);
    var height = A2($Signal.map,$Basics.snd,dimensions);
    return _elm.Window.values = {_op: _op,dimensions: dimensions,width: width,height: height};
+};Elm.Animation = Elm.Animation || {};
+Elm.Animation.make = function (_elm) {
+   "use strict";
+   _elm.Animation = _elm.Animation || {};
+   if (_elm.Animation.values) return _elm.Animation.values;
+   var _U = Elm.Native.Utils.make(_elm),
+   $Basics = Elm.Basics.make(_elm),
+   $Debug = Elm.Debug.make(_elm),
+   $List = Elm.List.make(_elm),
+   $Maybe = Elm.Maybe.make(_elm),
+   $Result = Elm.Result.make(_elm),
+   $Signal = Elm.Signal.make(_elm),
+   $Time = Elm.Time.make(_elm);
+   var _op = {};
+   var isScheduled = F2(function (t,_p0) {    var _p1 = _p0;return _U.cmp(t,_p1._0.start + _p1._0.delay) < 1;});
+   var getTo = function (_p2) {    var _p3 = _p2;return _p3._0.to;};
+   var getFrom = function (_p4) {    var _p5 = _p4;return _p5._0.from;};
+   var getEase = function (_p6) {    var _p7 = _p6;return _p7._0.ease;};
+   var getDelay = function (_p8) {    var _p9 = _p8;return _p9._0.delay;};
+   var getStart = function (_p10) {    var _p11 = _p10;return _p11._0.start;};
+   var timeElapsed = F2(function (t,_p12) {    var _p13 = _p12;return A2($Basics.max,0,t - (_p13._0.start + _p13._0.delay));});
+   var defaultEase = function (x) {    return (1 - $Basics.cos($Basics.pi * x)) / 2;};
+   var spd = F3(function (dos,from,to) {
+      var _p14 = dos;
+      if (_p14.ctor === "Duration") {
+            return $Basics.abs(to - from) / _p14._0;
+         } else {
+            return _p14._0;
+         }
+   });
+   var getSpeed = function (_p15) {    var _p16 = _p15;return A3(spd,_p16._0.dos,_p16._0.from,_p16._0.to);};
+   var dur = F3(function (dos,from,to) {
+      var _p17 = dos;
+      if (_p17.ctor === "Duration") {
+            return _p17._0;
+         } else {
+            return $Basics.abs(to - from) / _p17._0;
+         }
+   });
+   var animate = F2(function (t,_p18) {
+      var _p19 = _p18;
+      var _p23 = _p19._0.to;
+      var _p22 = _p19._0.start;
+      var _p21 = _p19._0.from;
+      var duration = A3(dur,_p19._0.dos,_p21,_p23);
+      var fr = A3($Basics.clamp,0,1,(t - _p22 - _p19._0.delay) / duration);
+      var eased = _p19._0.ease(fr);
+      var correction = function () {
+         var _p20 = _p19._0.ramp;
+         if (_p20.ctor === "Nothing") {
+               return 0;
+            } else {
+               var from$ = _p20._0 * (t - _p22);
+               var eased$ = defaultEase(fr);
+               return from$ - from$ * eased$;
+            }
+      }();
+      return _p21 + (_p23 - _p21) * eased + correction;
+   });
+   var velocity = F2(function (t,u) {    var forwDiff = A2(animate,t + 10,u);var backDiff = A2(animate,t - 10,u);return (forwDiff - backDiff) / 20;});
+   var timeRemaining = F2(function (t,_p24) {
+      var _p25 = _p24;
+      var duration = A3(dur,_p25._0.dos,_p25._0.from,_p25._0.to);
+      return A2($Basics.max,0,_p25._0.start + _p25._0.delay + duration - t);
+   });
+   var getDuration = function (_p26) {    var _p27 = _p26;return A3(dur,_p27._0.dos,_p27._0.from,_p27._0.to);};
+   var equals = F2(function (_p29,_p28) {
+      var _p30 = _p29;
+      var _p33 = _p30._0;
+      var _p31 = _p28;
+      var _p32 = _p31._0;
+      return _U.eq(_p33.start + _p33.delay,_p32.start + _p32.delay) && (_U.eq(_p33.from,_p32.from) && (_U.eq(_p33.to,_p32.to) && (_U.eq(_p33.ramp,
+      _p32.ramp) && ((_U.eq(_p33.dos,_p32.dos) || _U.cmp(1.0e-3,
+      $Basics.abs(A3(dur,_p33.dos,_p33.from,_p33.to) - A3(dur,_p32.dos,_p32.from,_p32.to))) > -1) && A2($List.all,
+      function (t) {
+         return _U.eq(_p33.ease(t),_p32.ease(t));
+      },
+      _U.list([0.1,0.3,0.7,0.9]))))));
+   });
+   var isRunning = F2(function (t,_p34) {
+      var _p35 = _p34;
+      var _p37 = _p35._0.start;
+      var _p36 = _p35._0.delay;
+      var duration = A3(dur,_p35._0.dos,_p35._0.from,_p35._0.to);
+      return _U.cmp(t,_p37 + _p36) > 0 && _U.cmp(t,_p37 + _p36 + duration) < 0;
+   });
+   var isDone = F2(function (t,_p38) {
+      var _p39 = _p38;
+      var duration = A3(dur,_p39._0.dos,_p39._0.from,_p39._0.to);
+      return _U.cmp(t,_p39._0.start + _p39._0.delay + duration) > -1;
+   });
+   var A = function (a) {    return {ctor: "A",_0: a};};
+   var undo = F2(function (t,_p40) {
+      var _p41 = _p40;
+      var _p42 = _p41._0;
+      return A(_U.update(_p42,
+      {from: _p42.to,to: _p42.from,start: t,delay: 0 - A2(timeRemaining,t,_p41),ramp: $Maybe.Nothing,ease: function (t) {    return 1 - _p42.ease(1 - t);}}));
+   });
+   var delay = F2(function (x,_p43) {    var _p44 = _p43;return A(_U.update(_p44._0,{delay: x}));});
+   var ease = F2(function (x,_p45) {    var _p46 = _p45;return A(_U.update(_p46._0,{ease: x}));});
+   var from = F2(function (x,_p47) {    var _p48 = _p47;return A(_U.update(_p48._0,{from: x,ramp: $Maybe.Nothing}));});
+   var to = F2(function (x,_p49) {    var _p50 = _p49;return A(_U.update(_p50._0,{to: x,ramp: $Maybe.Nothing}));});
+   var AnimRecord = F7(function (a,b,c,d,e,f,g) {    return {start: a,delay: b,dos: c,ramp: d,ease: e,from: f,to: g};});
+   var Speed = function (a) {    return {ctor: "Speed",_0: a};};
+   var speed = F2(function (x,_p51) {    var _p52 = _p51;return A(_U.update(_p52._0,{dos: Speed($Basics.abs(x))}));});
+   var Duration = function (a) {    return {ctor: "Duration",_0: a};};
+   var defaultDuration = Duration(750 * $Time.millisecond);
+   var animation = function (t) {    return A(A7(AnimRecord,t,0,defaultDuration,$Maybe.Nothing,defaultEase,0,1));};
+   var retarget = F3(function (t,newTo,_p53) {
+      var _p54 = _p53;
+      var _p57 = _p54;
+      var _p56 = _p54._0;
+      if (_U.eq(newTo,_p56.to)) return _p57; else if (_U.eq(_p56.from,_p56.to)) return A(_U.update(_p56,
+            {start: t,to: newTo,dos: defaultDuration,ramp: $Maybe.Nothing})); else if (A2(isScheduled,t,_p57)) return A(_U.update(_p56,
+               {to: newTo,ramp: $Maybe.Nothing})); else if (A2(isDone,t,_p57)) return A(_U.update(_p56,
+                  {start: t,delay: 0,from: _p56.to,to: newTo,ramp: $Maybe.Nothing})); else {
+                     var newSpeed = function () {
+                        var _p55 = _p56.dos;
+                        if (_p55.ctor === "Speed") {
+                              return _p56.dos;
+                           } else {
+                              return Speed(A3(spd,_p56.dos,_p56.from,_p56.to));
+                           }
+                     }();
+                     var pos = A2(animate,t,_p57);
+                     var vel = A2(velocity,t,_p57);
+                     return A(A7(AnimRecord,t,0,newSpeed,$Maybe.Just(vel),_p56.ease,pos,newTo));
+                  }
+   });
+   var $static = function (x) {    return A(A7(AnimRecord,0,0,Duration(0),$Maybe.Nothing,defaultEase,x,x));};
+   var duration = F2(function (x,_p58) {    var _p59 = _p58;return A(_U.update(_p59._0,{dos: Duration(x)}));});
+   return _elm.Animation.values = {_op: _op
+                                  ,animation: animation
+                                  ,$static: $static
+                                  ,animate: animate
+                                  ,duration: duration
+                                  ,speed: speed
+                                  ,delay: delay
+                                  ,ease: ease
+                                  ,from: from
+                                  ,to: to
+                                  ,undo: undo
+                                  ,retarget: retarget
+                                  ,getStart: getStart
+                                  ,getDuration: getDuration
+                                  ,getSpeed: getSpeed
+                                  ,getDelay: getDelay
+                                  ,getEase: getEase
+                                  ,getFrom: getFrom
+                                  ,getTo: getTo
+                                  ,equals: equals
+                                  ,velocity: velocity
+                                  ,timeElapsed: timeElapsed
+                                  ,timeRemaining: timeRemaining
+                                  ,isScheduled: isScheduled
+                                  ,isRunning: isRunning
+                                  ,isDone: isDone};
 };Elm.Native.SocketIO = {};
 Elm.Native.SocketIO.make = function(localRuntime) {
 
@@ -9406,11 +9563,13 @@ Elm.Movement.make = function (_elm) {
    $Result = Elm.Result.make(_elm),
    $Signal = Elm.Signal.make(_elm);
    var _op = {};
-   var moveItem = F6(function (speed,dt,axis,_p0,velocity,position) {
-      var _p1 = _p0;
-      var _p3 = _p1._0;
-      var _p2 = _p1._1;
-      var increment = _U.cmp(_p3,_p2) < 0 ? _p2 - _p3 : _p3 - _p2;
+   var vecSub = F2(function (_p1,_p0) {    var _p2 = _p1;var _p3 = _p0;return {ctor: "_Tuple2",_0: _p2._0 - _p3._0,_1: _p2._1 - _p3._1};});
+   var vecLen = function (_p4) {    var _p5 = _p4;var _p7 = _p5._1;var _p6 = _p5._0;return $Basics.sqrt(_p6 * _p6 + _p7 * _p7);};
+   var moveItem = F6(function (speed,dt,axis,_p8,velocity,position) {
+      var _p9 = _p8;
+      var _p11 = _p9._0;
+      var _p10 = _p9._1;
+      var increment = _U.cmp(_p11,_p10) < 0 ? _p10 - _p11 : _p11 - _p10;
       return A3($Basics.clamp,(0 - axis) / 2,axis / 2,position + increment / speed + dt * velocity);
    });
    var isAtBorder = F2(function (axis,position) {    return _U.eq(position,axis / 2) || _U.eq(position,0 - axis / 2);});
@@ -9418,7 +9577,27 @@ Elm.Movement.make = function (_elm) {
       var newPosition = _U.eq(position,axis / 2) ? position - axis / 1.01 : position + axis / 1.01;
       return A3($Basics.clamp,(0 - axis) / 2,axis / 2,newPosition + dt / 15 * velocity);
    });
-   return _elm.Movement.values = {_op: _op,invertPosition: invertPosition,isAtBorder: isAtBorder,moveItem: moveItem};
+   return _elm.Movement.values = {_op: _op,invertPosition: invertPosition,isAtBorder: isAtBorder,moveItem: moveItem,vecLen: vecLen,vecSub: vecSub};
+};Elm.GameTypes = Elm.GameTypes || {};
+Elm.GameTypes.make = function (_elm) {
+   "use strict";
+   _elm.GameTypes = _elm.GameTypes || {};
+   if (_elm.GameTypes.values) return _elm.GameTypes.values;
+   var _U = Elm.Native.Utils.make(_elm),
+   $Basics = Elm.Basics.make(_elm),
+   $Color = Elm.Color.make(_elm),
+   $Debug = Elm.Debug.make(_elm),
+   $List = Elm.List.make(_elm),
+   $Maybe = Elm.Maybe.make(_elm),
+   $Random = Elm.Random.make(_elm),
+   $Result = Elm.Result.make(_elm),
+   $Signal = Elm.Signal.make(_elm);
+   var _op = {};
+   var Position = F2(function (a,b) {    return {x: a,y: b};});
+   var Enemies = F2(function (a,b) {    return {enemies: a,seed: b};});
+   var Enemy = F6(function (a,b,c,d,e,f) {    return {x: a,y: b,startPos: c,endPos: d,rad: e,color: f};});
+   var Model = F6(function (a,b,c,d,e,f) {    return {x: a,y: b,vx: c,vy: d,rad: e,color: f};});
+   return _elm.GameTypes.values = {_op: _op,Model: Model,Enemy: Enemy,Enemies: Enemies,Position: Position};
 };Elm.Enemies = Elm.Enemies || {};
 Elm.Enemies.make = function (_elm) {
    "use strict";
@@ -9429,6 +9608,7 @@ Elm.Enemies.make = function (_elm) {
    $Color = Elm.Color.make(_elm),
    $Config = Elm.Config.make(_elm),
    $Debug = Elm.Debug.make(_elm),
+   $GameTypes = Elm.GameTypes.make(_elm),
    $List = Elm.List.make(_elm),
    $Maybe = Elm.Maybe.make(_elm),
    $Movement = Elm.Movement.make(_elm),
@@ -9437,111 +9617,109 @@ Elm.Enemies.make = function (_elm) {
    $Signal = Elm.Signal.make(_elm),
    $Time = Elm.Time.make(_elm);
    var _op = {};
+   var getListOfCollidingEnemies = F2(function (hero,enemies) {
+      return A2($List.filter,
+      function (_p0) {
+         var _p1 = _p0;
+         var _p2 = _p1.rad;
+         return _U.cmp(_p2,hero.rad) > 0 && _U.cmp($Movement.vecLen(A2($Movement.vecSub,
+         {ctor: "_Tuple2",_0: hero.x,_1: hero.y},
+         {ctor: "_Tuple2",_0: _p1.x,_1: _p1.y})),
+         hero.rad + _p2) < 0;
+      },
+      enemies);
+   });
+   var updateEnemyPos = F2(function (dt,_p3) {
+      var _p4 = _p3;
+      var _p8 = _p4.y;
+      var _p7 = _p4.x;
+      var _p6 = _p4.startPos;
+      var _p5 = _p4.endPos;
+      var newEndPos = _U.eq(_p7,$Config.areaW / 2) ? _p6 : _p5;
+      var newStartPos = _U.eq(_p7,$Config.areaW / 2) ? _p5 : _p6;
+      var newY = A2($Movement.isAtBorder,$Config.areaH,_p8) ? A4($Movement.invertPosition,dt,$Config.areaH,0,_p8) : A6($Movement.moveItem,
+      $Config.enemySpeed,
+      dt,
+      $Config.areaH,
+      {ctor: "_Tuple2",_0: _p5.y,_1: _p6.x},
+      0,
+      _p8);
+      var newX = A2($Movement.isAtBorder,$Config.areaW,_p7) ? A4($Movement.invertPosition,dt,$Config.areaW,0,_p7) : A6($Movement.moveItem,
+      $Config.enemySpeed,
+      dt,
+      $Config.areaW,
+      {ctor: "_Tuple2",_0: _p5.x,_1: _p6.x},
+      0,
+      _p7);
+      return A6($GameTypes.Enemy,newX,newY,newStartPos,newEndPos,_p4.rad,_p4.color);
+   });
    var getEnemyColor = function (x) {    return _U.cmp(x,48) < 1 ? $Color.lightRed : _U.cmp(x,56) < 1 ? $Color.orange : $Color.red;};
    var getRandomY = function (seed) {    return A2($Random.generate,A2($Random.$float,0 - $Config.areaH / 2,$Config.areaH / 2),seed);};
    var getRandomX = function (seed) {    return A2($Random.generate,A2($Random.$float,0 - $Config.areaW / 2,$Config.areaW / 2),seed);};
-   var Position = F2(function (a,b) {    return {x: a,y: b};});
-   var Enemies = F2(function (a,b) {    return {enemies: a,seed: b};});
-   var Enemy = F6(function (a,b,c,d,e,f) {    return {x: a,y: b,startPos: c,endPos: d,rad: e,color: f};});
-   var enemiesState = {enemies: _U.list([A6(Enemy,50,50,{x: 1,y: 1},{x: 1,y: 1},10,$Color.yellow)]),seed: $Random.initialSeed(20)};
    var getEnemies = F3(function (numEnemies,size,enemiesState) {
       return A3($List.foldl,
-      F2(function (x,_p0) {
-         var _p1 = _p0;
-         var _p2 = size;
-         var minSize = _p2._0;
-         var maxSize = _p2._1;
-         var _p3 = getRandomX(_p1.seed);
-         var randomStartX = _p3._0;
-         var firstSeed = _p3._1;
-         var _p4 = getRandomY(firstSeed);
-         var randomStartY = _p4._0;
-         var secondSeed = _p4._1;
-         var _p5 = getRandomX(secondSeed);
-         var randomEndX = _p5._0;
-         var thirdSeed = _p5._1;
-         var _p6 = getRandomY(thirdSeed);
-         var randomEndY = _p6._0;
-         var forthSeed = _p6._1;
-         var _p7 = A2($Random.generate,A2($Random.$float,minSize,maxSize),forthSeed);
-         var randomRad = _p7._0;
-         var fifthSeed = _p7._1;
+      F2(function (x,_p9) {
+         var _p10 = _p9;
+         var _p11 = size;
+         var minSize = _p11._0;
+         var maxSize = _p11._1;
+         var _p12 = getRandomX(_p10.seed);
+         var randomStartX = _p12._0;
+         var firstSeed = _p12._1;
+         var _p13 = getRandomY(firstSeed);
+         var randomStartY = _p13._0;
+         var secondSeed = _p13._1;
+         var _p14 = getRandomX(secondSeed);
+         var randomEndX = _p14._0;
+         var thirdSeed = _p14._1;
+         var _p15 = getRandomY(thirdSeed);
+         var randomEndY = _p15._0;
+         var forthSeed = _p15._1;
+         var _p16 = A2($Random.generate,A2($Random.$float,minSize,maxSize),forthSeed);
+         var randomRad = _p16._0;
+         var fifthSeed = _p16._1;
          var enemyColor = getEnemyColor(randomRad);
          var endPos = {x: randomEndX,y: randomEndY};
          var startPos = {x: randomStartX,y: randomStartY};
-         var nextEnemies = A2($List.append,_p1.enemies,_U.list([A6(Enemy,randomStartX,randomStartY,startPos,endPos,randomRad,enemyColor)]));
+         var nextEnemies = A2($List.append,_p10.enemies,_U.list([A6($GameTypes.Enemy,randomStartX,randomStartY,startPos,endPos,randomRad,enemyColor)]));
          return {enemies: nextEnemies,seed: fifthSeed};
       }),
       enemiesState,
       A2($List.repeat,numEnemies,""));
    });
-   var updateEnemyPos = F2(function (dt,_p8) {
-      var _p9 = _p8;
-      var _p13 = _p9.y;
-      var _p12 = _p9.x;
-      var _p11 = _p9.startPos;
-      var _p10 = _p9.endPos;
-      var newEndPos = _U.eq(_p12,$Config.areaW / 2) ? _p11 : _p10;
-      var newStartPos = _U.eq(_p12,$Config.areaW / 2) ? _p10 : _p11;
-      var newY = A2($Movement.isAtBorder,$Config.areaH,_p13) ? A4($Movement.invertPosition,dt,$Config.areaH,0,_p13) : A6($Movement.moveItem,
-      $Config.enemySpeed,
-      dt,
-      $Config.areaH,
-      {ctor: "_Tuple2",_0: _p10.y,_1: _p11.x},
-      0,
-      _p13);
-      var newX = A2($Movement.isAtBorder,$Config.areaW,_p12) ? A4($Movement.invertPosition,dt,$Config.areaW,0,_p12) : A6($Movement.moveItem,
-      $Config.enemySpeed,
-      dt,
-      $Config.areaW,
-      {ctor: "_Tuple2",_0: _p10.x,_1: _p11.x},
-      0,
-      _p12);
-      return A6(Enemy,newX,newY,newStartPos,newEndPos,_p9.rad,_p9.color);
-   });
+   var enemiesState = {enemies: _U.list([A6($GameTypes.Enemy,50,50,{x: 1,y: 1},{x: 1,y: 1},10,$Color.yellow)]),seed: $Random.initialSeed(20)};
+   var initialEnemies = A3(getEnemies,10,{ctor: "_Tuple2",_0: 4,_1: 30},enemiesState);
    return _elm.Enemies.values = {_op: _op
-                                ,Enemy: Enemy
-                                ,Enemies: Enemies
-                                ,Position: Position
+                                ,enemiesState: enemiesState
+                                ,initialEnemies: initialEnemies
                                 ,getRandomX: getRandomX
                                 ,getRandomY: getRandomY
                                 ,getEnemyColor: getEnemyColor
-                                ,enemiesState: enemiesState
                                 ,getEnemies: getEnemies
-                                ,updateEnemyPos: updateEnemyPos};
-};Elm.Outputs = Elm.Outputs || {};
-Elm.Outputs.make = function (_elm) {
+                                ,updateEnemyPos: updateEnemyPos
+                                ,getListOfCollidingEnemies: getListOfCollidingEnemies};
+};Elm.InitialState = Elm.InitialState || {};
+Elm.InitialState.make = function (_elm) {
    "use strict";
-   _elm.Outputs = _elm.Outputs || {};
-   if (_elm.Outputs.values) return _elm.Outputs.values;
+   _elm.InitialState = _elm.InitialState || {};
+   if (_elm.InitialState.values) return _elm.InitialState.values;
    var _U = Elm.Native.Utils.make(_elm),
    $Basics = Elm.Basics.make(_elm),
-   $Config = Elm.Config.make(_elm),
+   $Color = Elm.Color.make(_elm),
    $Debug = Elm.Debug.make(_elm),
-   $Json$Encode = Elm.Json.Encode.make(_elm),
-   $Keyboard = Elm.Keyboard.make(_elm),
+   $GameTypes = Elm.GameTypes.make(_elm),
    $List = Elm.List.make(_elm),
    $Maybe = Elm.Maybe.make(_elm),
+   $Random = Elm.Random.make(_elm),
    $Result = Elm.Result.make(_elm),
-   $Signal = Elm.Signal.make(_elm),
-   $SocketIO = Elm.SocketIO.make(_elm),
-   $Task = Elm.Task.make(_elm);
+   $Signal = Elm.Signal.make(_elm);
    var _op = {};
-   var encodeKeyboardArrows = function (record) {
-      return A2($Json$Encode.encode,
-      0,
-      $Json$Encode.object(_U.list([{ctor: "_Tuple2",_0: "y",_1: $Json$Encode.$int(record.y)},{ctor: "_Tuple2",_0: "x",_1: $Json$Encode.$int(record.x)}])));
-   };
-   var socket = A2($SocketIO.io,$Config.serverUrl,$SocketIO.defaultOptions);
-   var send = function (x) {    return A2($Task.andThen,socket,A2($SocketIO.emit,"SELF_UPDATE",x));};
-   var playerMove = A2($Signal.map,function (_p0) {    return send(encodeKeyboardArrows(_p0));},$Keyboard.arrows);
-   var KeyboardArrows = F2(function (a,b) {    return {y: a,x: b};});
-   return _elm.Outputs.values = {_op: _op
-                                ,KeyboardArrows: KeyboardArrows
-                                ,socket: socket
-                                ,send: send
-                                ,playerMove: playerMove
-                                ,encodeKeyboardArrows: encodeKeyboardArrows};
+   var enemiesState = {enemies: _U.list([A6($GameTypes.Enemy,50,50,{x: 1,y: 1},{x: 1,y: 1},10,$Color.yellow)]),seed: $Random.initialSeed(20)};
+   var opponentColor = $Color.purple;
+   var opponent = A6($GameTypes.Model,0,0,0,0,40,opponentColor);
+   var heroColor = $Color.white;
+   var hero = A6($GameTypes.Model,0,0,0,0,40,heroColor);
+   return _elm.InitialState.values = {_op: _op,heroColor: heroColor,opponentColor: opponentColor,hero: hero,opponent: opponent,enemiesState: enemiesState};
 };Elm.Inputs = Elm.Inputs || {};
 Elm.Inputs.make = function (_elm) {
    "use strict";
@@ -9552,42 +9730,49 @@ Elm.Inputs.make = function (_elm) {
    $Debug = Elm.Debug.make(_elm),
    $Graphics$Input$Field = Elm.Graphics.Input.Field.make(_elm),
    $Json$Decode = Elm.Json.Decode.make(_elm),
+   $Keyboard = Elm.Keyboard.make(_elm),
    $List = Elm.List.make(_elm),
    $Maybe = Elm.Maybe.make(_elm),
-   $Outputs = Elm.Outputs.make(_elm),
    $Result = Elm.Result.make(_elm),
-   $Signal = Elm.Signal.make(_elm);
+   $Signal = Elm.Signal.make(_elm),
+   $Time = Elm.Time.make(_elm);
    var _op = {};
+   var Input = F3(function (a,b,c) {    return {h: a,dt: b,o: c};});
+   var responses = $Signal.mailbox("{dt:42,h:{x:0,y:0},o:{x:0,y:0}}");
+   var nameMailbox = $Signal.mailbox($Graphics$Input$Field.noContent);
+   var initialResponse = {h: {x: 0,y: 0},dt: $Basics.toFloat(40),o: {x: 0,y: 0}};
+   var delta = A2($Signal.map,function (t) {    return t;},$Time.fps(60));
+   var combineInputs = F3(function (dt,arrows,_p0) {    var _p1 = _p0;return {ctor: "_Tuple5",_0: dt,_1: arrows,_2: _p1._0,_3: _p1._1,_4: _p1._2};});
+   var KeyboardArrows = F2(function (a,b) {    return {y: a,x: b};});
    var decodeKeyboardArrows = A3($Json$Decode.object2,
-   $Outputs.KeyboardArrows,
+   KeyboardArrows,
    A2($Json$Decode._op[":="],"y",$Json$Decode.$int),
    A2($Json$Decode._op[":="],"x",$Json$Decode.$int));
-   var Input = F3(function (a,b,c) {    return {h: a,dt: b,o: c};});
    var decodeInput = A4($Json$Decode.object3,
    Input,
    A2($Json$Decode._op[":="],"h",decodeKeyboardArrows),
    A2($Json$Decode._op[":="],"dt",$Json$Decode.$float),
    A2($Json$Decode._op[":="],"o",decodeKeyboardArrows));
-   var responses = $Signal.mailbox("{dt:42,h:{x:0,y:0},o:{x:0,y:0}}");
-   var nameMailbox = $Signal.mailbox($Graphics$Input$Field.noContent);
-   var initialResponse = {h: {x: 0,y: 0},dt: $Basics.toFloat(40),o: {x: 0,y: 0}};
+   var combineMailboxes = F3(function (response,name,action) {
+      var inputRecord = A2($Result.withDefault,initialResponse,A2($Json$Decode.decodeString,decodeInput,response));
+      return {ctor: "_Tuple3",_0: inputRecord,_1: name,_2: action};
+   });
    var Quit = {ctor: "Quit"};
    var SubmitName = {ctor: "SubmitName"};
    var NoOp = {ctor: "NoOp"};
    var actionsMailbox = $Signal.mailbox(NoOp);
-   var input = A4($Signal.map3,
-   F3(function (response,name,action) {
-      var inputRecord = A2($Result.withDefault,initialResponse,A2($Json$Decode.decodeString,decodeInput,response));
-      return {ctor: "_Tuple3",_0: inputRecord,_1: name,_2: action};
-   }),
-   responses.signal,
-   nameMailbox.signal,
-   actionsMailbox.signal);
+   var mailboxes = A4($Signal.map3,combineMailboxes,responses.signal,nameMailbox.signal,actionsMailbox.signal);
+   var input = A2($Signal.sampleOn,delta,A4($Signal.map3,combineInputs,delta,$Keyboard.arrows,mailboxes));
    return _elm.Inputs.values = {_op: _op
                                ,NoOp: NoOp
                                ,SubmitName: SubmitName
                                ,Quit: Quit
+                               ,KeyboardArrows: KeyboardArrows
+                               ,combineInputs: combineInputs
                                ,input: input
+                               ,delta: delta
+                               ,combineMailboxes: combineMailboxes
+                               ,mailboxes: mailboxes
                                ,initialResponse: initialResponse
                                ,nameMailbox: nameMailbox
                                ,actionsMailbox: actionsMailbox
@@ -9595,12 +9780,46 @@ Elm.Inputs.make = function (_elm) {
                                ,Input: Input
                                ,decodeKeyboardArrows: decodeKeyboardArrows
                                ,decodeInput: decodeInput};
-};Elm.StarShapes = Elm.StarShapes || {};
-Elm.StarShapes.make = function (_elm) {
+};Elm.Outputs = Elm.Outputs || {};
+Elm.Outputs.make = function (_elm) {
    "use strict";
-   _elm.StarShapes = _elm.StarShapes || {};
-   if (_elm.StarShapes.values) return _elm.StarShapes.values;
+   _elm.Outputs = _elm.Outputs || {};
+   if (_elm.Outputs.values) return _elm.Outputs.values;
    var _U = Elm.Native.Utils.make(_elm),
+   $Basics = Elm.Basics.make(_elm),
+   $Config = Elm.Config.make(_elm),
+   $Debug = Elm.Debug.make(_elm),
+   $Inputs = Elm.Inputs.make(_elm),
+   $Json$Encode = Elm.Json.Encode.make(_elm),
+   $Keyboard = Elm.Keyboard.make(_elm),
+   $List = Elm.List.make(_elm),
+   $Maybe = Elm.Maybe.make(_elm),
+   $Result = Elm.Result.make(_elm),
+   $Signal = Elm.Signal.make(_elm),
+   $SocketIO = Elm.SocketIO.make(_elm),
+   $Task = Elm.Task.make(_elm);
+   var _op = {};
+   var encodeData = function (_p0) {
+      var _p1 = _p0;
+      var _p2 = _p1._0;
+      return A2($Json$Encode.encode,
+      0,
+      $Json$Encode.object(_U.list([{ctor: "_Tuple2",_0: "y",_1: $Json$Encode.$int(_p2.y)}
+                                  ,{ctor: "_Tuple2",_0: "x",_1: $Json$Encode.$int(_p2.x)}
+                                  ,{ctor: "_Tuple2",_0: "name",_1: $Json$Encode.string(_p1._1.string)}])));
+   };
+   var outputs = A3($Signal.map2,F2(function (v0,v1) {    return {ctor: "_Tuple2",_0: v0,_1: v1};}),$Keyboard.arrows,$Inputs.nameMailbox.signal);
+   var socket = A2($SocketIO.io,$Config.serverUrl,$SocketIO.defaultOptions);
+   var send = function (x) {    return A2($Task.andThen,socket,A2($SocketIO.emit,"SELF_UPDATE",x));};
+   var encodeDataAndSend = A2($Signal.map,function (_p3) {    return send(encodeData(_p3));},outputs);
+   return _elm.Outputs.values = {_op: _op,socket: socket,send: send,encodeDataAndSend: encodeDataAndSend,outputs: outputs,encodeData: encodeData};
+};Elm.Views = Elm.Views || {};
+Elm.Views.make = function (_elm) {
+   "use strict";
+   _elm.Views = _elm.Views || {};
+   if (_elm.Views.values) return _elm.Views.values;
+   var _U = Elm.Native.Utils.make(_elm),
+   $Animation = Elm.Animation.make(_elm),
    $Basics = Elm.Basics.make(_elm),
    $Color = Elm.Color.make(_elm),
    $Config = Elm.Config.make(_elm),
@@ -9613,21 +9832,14 @@ Elm.StarShapes.make = function (_elm) {
    $Inputs = Elm.Inputs.make(_elm),
    $List = Elm.List.make(_elm),
    $Maybe = Elm.Maybe.make(_elm),
-   $Movement = Elm.Movement.make(_elm),
-   $Outputs = Elm.Outputs.make(_elm),
    $Result = Elm.Result.make(_elm),
    $Signal = Elm.Signal.make(_elm),
-   $SocketIO = Elm.SocketIO.make(_elm),
-   $Task = Elm.Task.make(_elm),
-   $Text = Elm.Text.make(_elm),
-   $Window = Elm.Window.make(_elm);
+   $Text = Elm.Text.make(_elm);
    var _op = {};
-   var outgoing = Elm.Native.Task.make(_elm).performSignal("outgoing",$Outputs.playerMove);
+   var isPlayerCollided = F2(function (player,enemies) {    return _U.cmp($List.length(A2($Enemies.getListOfCollidingEnemies,player,enemies)),0) > 0;});
    var inputNameView = F2(function (_p1,_p0) {
       var _p2 = _p1;
       var _p3 = _p0;
-      var _p5 = _p3.name;
-      var _p4 = A2($Debug.log,"INPUT NAME",_p5);
       return A4($Graphics$Element.container,
       _p2._0,
       _p2._1,
@@ -9639,18 +9851,194 @@ Elm.StarShapes.make = function (_elm) {
               $Graphics$Input$Field.defaultStyle,
               $Signal.message($Inputs.nameMailbox.address),
               "Name",
-              _p5))
+              _p3.name))
               ,A2($Graphics$Collage.moveX,
               200,
               $Graphics$Collage.toForm(A2($Graphics$Input.button,A2($Signal.message,$Inputs.actionsMailbox.address,$Inputs.SubmitName),"CHOOSE")))])));
    });
+   var quitButton = A2($Graphics$Collage.move,
+   {ctor: "_Tuple2",_0: 290,_1: -200},
+   $Graphics$Collage.toForm(A2($Graphics$Input.button,A2($Signal.message,$Inputs.actionsMailbox.address,$Inputs.Quit),"QUIT")));
+   var textStyle = {typeface: _U.list(["roboto","sans-serif"]),height: $Maybe.Just(24),color: $Color.white,bold: true,italic: false,line: $Maybe.Nothing};
+   var scoreText = function (score) {
+      return A2($Graphics$Collage.move,
+      {ctor: "_Tuple2",_0: 65 - $Config.areaW / 2,_1: 30 - $Config.areaH / 2},
+      $Graphics$Collage.text(A2($Text.style,textStyle,$Text.fromString(A2($Basics._op["++"],"Score ",$Basics.toString(score))))));
+   };
+   var enemyForm = F2(function (hero,_p4) {
+      var _p5 = _p4;
+      var _p8 = _p5.y;
+      var _p7 = _p5.x;
+      var _p6 = _p5.rad;
+      var rock = $Graphics$Collage.toForm(A3($Graphics$Element.image,$Basics.round(_p6),$Basics.round(_p6),$Config.rockImageUrl));
+      var heroLineColor = $Graphics$Collage.dotted(hero.color);
+      var dottedHeroLine = _U.update(heroLineColor,{width: 4});
+      var dottedEnemyLine = _U.update(dottedHeroLine,{color: _p5.color,width: 12});
+      var enemyForm = _U.cmp(hero.rad,_p6) > 0 ? A2($Graphics$Collage.move,
+      {ctor: "_Tuple2",_0: _p7,_1: _p8},
+      rock) : $Graphics$Collage.group(_U.list([A2($Graphics$Collage.move,
+                                              {ctor: "_Tuple2",_0: _p7,_1: _p8},
+                                              A2($Graphics$Collage.outlined,dottedEnemyLine,$Graphics$Collage.circle(_p6)))
+                                              ,A2($Graphics$Collage.move,
+                                              {ctor: "_Tuple2",_0: _p7,_1: _p8},
+                                              $Graphics$Collage.text(A2($Text.style,textStyle,$Text.fromString("Alien"))))]));
+      return enemyForm;
+   });
+   var enemyForms = F2(function (hero,enemies) {    return A2($List.map,enemyForm(hero),enemies);});
+   var GameView = {ctor: "GameView"};
+   var PlayerNameForm = {ctor: "PlayerNameForm"};
+   var backgroundPos = {ctor: "_Tuple2",_0: $Config.areaW,_1: $Config.areaH};
+   var gameView = F2(function (_p10,_p9) {
+      var _p11 = _p10;
+      var _p12 = _p9;
+      var _p17 = _p12.opponent;
+      var _p16 = _p12.hero;
+      var _p15 = _p12.clock;
+      var opponentName = A2($Graphics$Collage.move,
+      {ctor: "_Tuple2",_0: _p17.x,_1: _p17.y},
+      $Graphics$Collage.text(A2($Text.style,textStyle,$Text.fromString("P2"))));
+      var radius = A2($Animation.animate,_p15,_p12.r);
+      var angle = A2($Animation.animate,_p15,_p12.theta);
+      var background = $Graphics$Collage.toForm(A3($Graphics$Element.image,$Config.areaW,$Config.areaH,$Config.backgroundImageUrl));
+      var _p13 = backgroundPos;
+      var bgX = _p13._0;
+      var bgY = _p13._1;
+      var opponentLineColor = $Graphics$Collage.dotted(_p17.color);
+      var dottedOpponentLine = _U.update(opponentLineColor,{width: 4});
+      var opponentForm = A2($Graphics$Collage.move,
+      {ctor: "_Tuple2",_0: _p17.x,_1: _p17.y},
+      A2($Graphics$Collage.outlined,dottedOpponentLine,$Graphics$Collage.circle(_p17.rad)));
+      var heroLineColor = $Graphics$Collage.dotted(_p16.color);
+      var dottedHeroLine = _U.update(heroLineColor,{width: 4});
+      var heroForm = $Graphics$Collage.group(_U.list([A2($Graphics$Collage.move,
+                                                     {ctor: "_Tuple2",_0: _p16.x,_1: _p16.y},
+                                                     A2($Graphics$Collage.outlined,dottedHeroLine,$Graphics$Collage.circle(_p16.rad)))
+                                                     ,A2($Graphics$Collage.rotate,
+                                                     angle,
+                                                     A2($Graphics$Collage.move,
+                                                     {ctor: "_Tuple2",_0: _p16.x,_1: _p16.y},
+                                                     $Graphics$Collage.text(A2($Text.style,textStyle,$Text.fromString(_p12.name.string)))))]));
+      var _p14 = _p12.enemiesState;
+      var enemies = _p14.enemies;
+      var isPlayerCollidedWithEnemy = A2(isPlayerCollided,_p16,enemies);
+      return A4($Graphics$Element.container,
+      _p11._0,
+      _p11._1,
+      $Graphics$Element.middle,
+      A3($Graphics$Collage.collage,
+      $Config.areaW,
+      $Config.areaH,
+      $List.concat(_U.list([_U.list([background,opponentForm,opponentName,heroForm,scoreText(_p12.score)])
+                           ,A2(enemyForms,_p16,enemies)
+                           ,_U.list([quitButton])]))));
+   });
+   var router = F2(function (_p18,state) {
+      var _p19 = _p18;
+      var _p23 = _p19._0;
+      var _p22 = _p19._1;
+      var _p20 = state;
+      var view = _p20.view;
+      var _p21 = view;
+      if (_p21.ctor === "PlayerNameForm") {
+            return A2(inputNameView,{ctor: "_Tuple2",_0: _p23,_1: _p22},state);
+         } else {
+            return A2(gameView,{ctor: "_Tuple2",_0: _p23,_1: _p22},state);
+         }
+   });
+   return _elm.Views.values = {_op: _op
+                              ,backgroundPos: backgroundPos
+                              ,PlayerNameForm: PlayerNameForm
+                              ,GameView: GameView
+                              ,router: router
+                              ,textStyle: textStyle
+                              ,scoreText: scoreText
+                              ,enemyForm: enemyForm
+                              ,enemyForms: enemyForms
+                              ,quitButton: quitButton
+                              ,inputNameView: inputNameView
+                              ,gameView: gameView
+                              ,isPlayerCollided: isPlayerCollided};
+};Elm.StarShapes = Elm.StarShapes || {};
+Elm.StarShapes.make = function (_elm) {
+   "use strict";
+   _elm.StarShapes = _elm.StarShapes || {};
+   if (_elm.StarShapes.values) return _elm.StarShapes.values;
+   var _U = Elm.Native.Utils.make(_elm),
+   $Animation = Elm.Animation.make(_elm),
+   $Basics = Elm.Basics.make(_elm),
+   $Color = Elm.Color.make(_elm),
+   $Config = Elm.Config.make(_elm),
+   $Debug = Elm.Debug.make(_elm),
+   $Enemies = Elm.Enemies.make(_elm),
+   $GameTypes = Elm.GameTypes.make(_elm),
+   $Graphics$Element = Elm.Graphics.Element.make(_elm),
+   $Graphics$Input$Field = Elm.Graphics.Input.Field.make(_elm),
+   $InitialState = Elm.InitialState.make(_elm),
+   $Inputs = Elm.Inputs.make(_elm),
+   $List = Elm.List.make(_elm),
+   $Maybe = Elm.Maybe.make(_elm),
+   $Movement = Elm.Movement.make(_elm),
+   $Outputs = Elm.Outputs.make(_elm),
+   $Result = Elm.Result.make(_elm),
+   $Signal = Elm.Signal.make(_elm),
+   $SocketIO = Elm.SocketIO.make(_elm),
+   $Task = Elm.Task.make(_elm),
+   $Time = Elm.Time.make(_elm),
+   $Views = Elm.Views.make(_elm),
+   $Window = Elm.Window.make(_elm);
+   var _op = {};
+   var updateClock = F2(function (dt,game) {    return _U.update(game,{clock: game.clock + dt});});
    var updateName = F2(function (name,game) {    return _U.update(game,{name: name});});
+   var getListOfCollidingEnemies = F2(function (hero,enemies) {
+      return A2($List.filter,
+      function (_p0) {
+         var _p1 = _p0;
+         var _p2 = _p1.rad;
+         return _U.cmp(_p2,hero.rad) > 0 && _U.cmp($Movement.vecLen(A2($Movement.vecSub,
+         {ctor: "_Tuple2",_0: hero.x,_1: hero.y},
+         {ctor: "_Tuple2",_0: _p1.x,_1: _p1.y})),
+         hero.rad + _p2) < 0;
+      },
+      enemies);
+   });
+   var detectCollision = function (game) {
+      var _p3 = game;
+      var enemiesState = _p3.enemiesState;
+      var score = _p3.score;
+      var hero = _p3.hero;
+      var opponent = _p3.opponent;
+      var _p4 = enemiesState;
+      var enemies = _p4.enemies;
+      var enemiesToReturn = A2($List.filter,
+      function (_p5) {
+         var _p6 = _p5;
+         var _p9 = _p6.y;
+         var _p8 = _p6.x;
+         var _p7 = _p6.rad;
+         return _U.cmp(hero.rad,_p7) > 0 ? _U.cmp($Movement.vecLen(A2($Movement.vecSub,
+         {ctor: "_Tuple2",_0: hero.x,_1: hero.y},
+         {ctor: "_Tuple2",_0: _p8,_1: _p9})),
+         hero.rad + _p7) > 0 && _U.cmp($Movement.vecLen(A2($Movement.vecSub,{ctor: "_Tuple2",_0: opponent.x,_1: opponent.y},{ctor: "_Tuple2",_0: _p8,_1: _p9})),
+         opponent.rad + _p7) > 0 : true;
+      },
+      enemies);
+      var damageAgainstPlayer = A2(getListOfCollidingEnemies,hero,enemiesToReturn);
+      var isCollided = A2($Views.isPlayerCollided,hero,enemies);
+      return _U.update(game,
+      {hero: _U.update(hero,
+      {rad: _U.eq($List.length(enemies),$List.length(enemiesToReturn)) ? hero.rad : hero.rad + 5.0e-2,color: isCollided ? $Color.red : $InitialState.heroColor})
+      ,opponent: _U.update(opponent,
+      {rad: _U.eq($List.length(enemies),$List.length(enemiesToReturn)) ? opponent.rad : opponent.rad + 5.0e-2
+      ,color: isCollided ? $Color.red : $InitialState.opponentColor})
+      ,score: $Basics.toFloat($Basics.floor(score + $Basics.toFloat($List.length(enemies)) - ($Basics.toFloat($List.length(enemiesToReturn)) + $Basics.toFloat($List.length(damageAgainstPlayer)) / 100)))
+      ,enemiesState: _U.update(enemiesState,{enemies: enemiesToReturn})});
+   };
    var updateHeroPos = F2(function (dt,hero) {
-      var _p6 = hero;
-      var x = _p6.x;
-      var y = _p6.y;
-      var vx = _p6.vx;
-      var vy = _p6.vy;
+      var _p10 = hero;
+      var x = _p10.x;
+      var y = _p10.y;
+      var vx = _p10.vx;
+      var vy = _p10.vy;
       var updatedX = A2($Movement.isAtBorder,$Config.areaW,x) ? A4($Movement.invertPosition,dt,$Config.areaW,vx,x) : A3($Basics.clamp,
       (0 - $Config.areaW) / 2,
       $Config.areaW / 2,
@@ -9662,216 +10050,97 @@ Elm.StarShapes.make = function (_elm) {
       return _U.update(hero,{x: updatedX,y: updatedY});
    });
    var updatePosition = F2(function (dt,game) {
-      var _p7 = game;
-      var hero = _p7.hero;
-      var enemiesState = _p7.enemiesState;
-      var opponent = _p7.opponent;
+      var _p11 = game;
+      var hero = _p11.hero;
+      var enemiesState = _p11.enemiesState;
+      var opponent = _p11.opponent;
       var updatedEnemies = A2($List.map,$Enemies.updateEnemyPos(dt),enemiesState.enemies);
       var updatedHero = A2(updateHeroPos,dt,hero);
       var updatedOpponent = A2(updateHeroPos,dt,opponent);
       return _U.update(game,{hero: updatedHero,opponent: updatedOpponent,enemiesState: _U.update(enemiesState,{enemies: updatedEnemies})});
    });
-   var updateEnemies = function (game) {
-      var _p8 = game;
-      var enemiesState = _p8.enemiesState;
-      var hero = _p8.hero;
-      var newEnemies = _U.cmp($List.length(enemiesState.enemies),5) > -1 ? enemiesState : A3($Enemies.getEnemies,
-      30,
-      {ctor: "_Tuple2",_0: 4,_1: hero.rad + 2.5},
-      enemiesState);
-      var nextEnemiesState = _U.cmp($List.length(enemiesState.enemies),5) > -1 ? enemiesState : newEnemies;
-      return _U.update(game,{enemiesState: nextEnemiesState});
-   };
-   var newVelocity = F3(function (_p9,opp,game) {
-      var _p10 = _p9;
-      var _p13 = _p10.y;
-      var _p12 = _p10.x;
-      var _p11 = game;
-      var hero = _p11.hero;
-      var opponent = _p11.opponent;
-      var scale = 6;
-      var newVel = function (n) {    return _U.eq(_p12,0) || _U.eq(_p13,0) ? scale * $Basics.toFloat(n) : scale * $Basics.toFloat(n) / $Basics.sqrt(2);};
-      return _U.update(game,{opponent: _U.update(opponent,{vx: newVel(opp.x),vy: newVel(opp.y)}),hero: _U.update(hero,{vx: newVel(_p12),vy: newVel(_p13)})});
+   var newVelocity = F3(function (_p12,opp,game) {
+      var _p13 = _p12;
+      var _p16 = _p13.y;
+      var _p15 = _p13.x;
+      var _p14 = game;
+      var hero = _p14.hero;
+      var opponent = _p14.opponent;
+      var scale = 9;
+      var newVel = function (n) {    return _U.eq(_p15,0) || _U.eq(_p16,0) ? scale * $Basics.toFloat(n) : scale * $Basics.toFloat(n) / $Basics.sqrt(2);};
+      return _U.update(game,{opponent: _U.update(opponent,{vx: newVel(opp.x),vy: newVel(opp.y)}),hero: _U.update(hero,{vx: newVel(_p15),vy: newVel(_p16)})});
    });
-   var Game = F6(function (a,b,c,d,e,f) {    return {hero: a,opponent: b,enemiesState: c,score: d,name: e,view: f};});
-   var GameView = {ctor: "GameView"};
-   var PlayerNameForm = {ctor: "PlayerNameForm"};
-   var backgroundPos = {ctor: "_Tuple2",_0: $Config.areaW,_1: $Config.areaH};
-   var opponentColor = $Color.purple;
-   var heroColor = $Color.white;
-   var textStyle = {typeface: _U.list(["roboto","sans-serif"]),height: $Maybe.Just(24),color: $Color.white,bold: true,italic: false,line: $Maybe.Nothing};
-   var Model = F6(function (a,b,c,d,e,f) {    return {x: a,y: b,vx: c,vy: d,rad: e,color: f};});
-   var hero = A6(Model,0,0,0,0,40,heroColor);
-   var opponent = A6(Model,0,0,0,0,40,opponentColor);
-   var gameState = {opponent: opponent
-                   ,hero: hero
-                   ,enemiesState: A3($Enemies.getEnemies,10,{ctor: "_Tuple2",_0: 4,_1: 30},$Enemies.enemiesState)
-                   ,score: 0
-                   ,name: $Graphics$Input$Field.noContent
-                   ,view: PlayerNameForm};
-   var selectView = F2(function (action,game) {
-      var _p14 = action;
-      switch (_p14.ctor)
-      {case "NoOp": return _U.update(game,{view: PlayerNameForm});
-         case "SubmitName": return _U.update(game,{view: GameView});
-         default: return _U.update(gameState,{view: PlayerNameForm,name: game.name});}
-   });
-   var vecSub = F2(function (_p16,_p15) {    var _p17 = _p16;var _p18 = _p15;return {ctor: "_Tuple2",_0: _p17._0 - _p18._0,_1: _p17._1 - _p18._1};});
-   var vecLen = function (_p19) {    var _p20 = _p19;var _p22 = _p20._1;var _p21 = _p20._0;return $Basics.sqrt(_p21 * _p21 + _p22 * _p22);};
-   var getListOfCollidingEnemies = F2(function (hero,enemies) {
-      return A2($List.filter,
-      function (_p23) {
-         var _p24 = _p23;
-         var _p25 = _p24.rad;
-         return _U.cmp(_p25,hero.rad) > 0 && _U.cmp(vecLen(A2(vecSub,{ctor: "_Tuple2",_0: hero.x,_1: hero.y},{ctor: "_Tuple2",_0: _p24.x,_1: _p24.y})),
-         hero.rad + _p25) < 0;
-      },
-      enemies);
-   });
-   var isPlayerCollided = F2(function (player,enemies) {    return _U.cmp($List.length(A2(getListOfCollidingEnemies,player,enemies)),0) > 0;});
-   var gameView = F2(function (_p27,_p26) {
-      var _p28 = _p27;
-      var _p29 = _p26;
-      var _p38 = _p29.opponent;
-      var _p37 = _p29.hero;
-      var quitButton = A2($Graphics$Collage.move,
-      {ctor: "_Tuple2",_0: 290,_1: -200},
-      $Graphics$Collage.toForm(A2($Graphics$Input.button,A2($Signal.message,$Inputs.actionsMailbox.address,$Inputs.Quit),"QUIT")));
-      var solidChar = $Graphics$Collage.dotted($Color.charcoal);
-      var lineStyle = _U.update(solidChar,{width: 9});
-      var pathForm = A2($Graphics$Collage.traced,
-      lineStyle,
-      $Graphics$Collage.path(_U.list([{ctor: "_Tuple2",_0: -140,_1: -140},{ctor: "_Tuple2",_0: -200,_1: 60},{ctor: "_Tuple2",_0: -40,_1: 100}])));
-      var textScore = A2($Graphics$Collage.move,
-      {ctor: "_Tuple2",_0: 65 - $Config.areaW / 2,_1: 30 - $Config.areaH / 2},
-      $Graphics$Collage.text(A2($Text.style,textStyle,$Text.fromString(A2($Basics._op["++"],"Score ",$Basics.toString(_p29.score))))));
-      var opponentName = A2($Graphics$Collage.move,
-      {ctor: "_Tuple2",_0: _p38.x,_1: _p38.y},
-      $Graphics$Collage.text(A2($Text.style,textStyle,$Text.fromString("P2"))));
-      var heroName = A2($Graphics$Collage.move,
-      {ctor: "_Tuple2",_0: _p37.x,_1: _p37.y},
-      $Graphics$Collage.text(A2($Text.style,textStyle,$Text.fromString(_p29.name.string))));
-      var background = $Graphics$Collage.toForm(A3($Graphics$Element.image,$Config.areaW,$Config.areaH,$Config.backgroundImageUrl));
-      var _p30 = backgroundPos;
-      var bgX = _p30._0;
-      var bgY = _p30._1;
-      var opponentLineColor = $Graphics$Collage.dotted(_p38.color);
-      var dottedOpponentLine = _U.update(opponentLineColor,{width: 4});
-      var opponentForm = A2($Graphics$Collage.move,
-      {ctor: "_Tuple2",_0: _p38.x,_1: _p38.y},
-      A2($Graphics$Collage.outlined,dottedOpponentLine,$Graphics$Collage.circle(_p38.rad)));
-      var heroLineColor = $Graphics$Collage.dotted(_p37.color);
-      var dottedHeroLine = _U.update(heroLineColor,{width: 4});
-      var heroForm = A2($Graphics$Collage.move,
-      {ctor: "_Tuple2",_0: _p37.x,_1: _p37.y},
-      A2($Graphics$Collage.outlined,dottedHeroLine,$Graphics$Collage.circle(_p37.rad)));
-      var _p31 = _p29.enemiesState;
-      var enemies = _p31.enemies;
-      var isPlayerCollidedWithEnemy = A2(isPlayerCollided,_p37,enemies);
-      var enemyForms = A2($List.map,
-      function (_p32) {
-         var _p33 = _p32;
-         var _p36 = _p33.y;
-         var _p35 = _p33.x;
-         var _p34 = _p33.rad;
-         var rock = $Graphics$Collage.toForm(A3($Graphics$Element.image,$Basics.round(_p34),$Basics.round(_p34),$Config.rockImageUrl));
-         var dottedEnemyLine = _U.update(dottedHeroLine,{color: _p33.color,width: 12});
-         var enemyForm = _U.cmp(_p37.rad,_p34) > 0 ? A2($Graphics$Collage.move,
-         {ctor: "_Tuple2",_0: _p35,_1: _p36},
-         rock) : $Graphics$Collage.group(_U.list([A2($Graphics$Collage.move,
-                                                 {ctor: "_Tuple2",_0: _p35,_1: _p36},
-                                                 A2($Graphics$Collage.outlined,dottedEnemyLine,$Graphics$Collage.circle(_p34)))
-                                                 ,A2($Graphics$Collage.move,
-                                                 {ctor: "_Tuple2",_0: _p35,_1: _p36},
-                                                 $Graphics$Collage.text(A2($Text.style,textStyle,$Text.fromString("Alien"))))]));
-         return enemyForm;
-      },
-      enemies);
-      return A4($Graphics$Element.container,
-      _p28._0,
-      _p28._1,
-      $Graphics$Element.middle,
-      A3($Graphics$Collage.collage,
-      $Config.areaW,
-      $Config.areaH,
-      $List.concat(_U.list([_U.list([background,pathForm,opponentForm,opponentName,heroForm,heroName,textScore]),enemyForms,_U.list([quitButton])]))));
-   });
-   var router = F2(function (_p39,state) {
-      var _p40 = _p39;
-      var _p44 = _p40._0;
-      var _p43 = _p40._1;
-      var _p41 = state;
-      var view = _p41.view;
-      var _p42 = view;
-      if (_p42.ctor === "PlayerNameForm") {
-            return A2(inputNameView,{ctor: "_Tuple2",_0: _p44,_1: _p43},state);
+   var response = Elm.Native.Task.make(_elm).perform(A2($Task.andThen,$Outputs.socket,A2($SocketIO.on,"OPPONENT_UPDATE",$Inputs.responses.address)));
+   var outgoing = Elm.Native.Task.make(_elm).performSignal("outgoing",$Outputs.encodeDataAndSend);
+   var triggerAnimationIfCollision = F2(function (dt,game) {
+      var _p17 = game.enemiesState;
+      var enemies = _p17.enemies;
+      var isCollided = A2($Views.isPlayerCollided,game.hero,enemies);
+      var _p18 = isCollided;
+      if (_p18 === true) {
+            var r = A2($Animation.speed,0.4,A3($Animation.retarget,game.clock,A2($Basics.min,360,360),game.r));
+            var theta = A2($Animation.speed,1.3e-2,A3($Animation.retarget,game.clock,180,game.theta));
+            var dur = A2($Basics.max,$Animation.getDuration(theta),$Animation.getDuration(r));
+            return _U.update(game,{theta: A2($Animation.duration,dur,theta),r: A2($Animation.duration,dur,r)});
          } else {
-            return A2(gameView,{ctor: "_Tuple2",_0: _p44,_1: _p43},state);
+            return game;
          }
    });
-   var detectCollision = function (game) {
-      var _p45 = game;
-      var enemiesState = _p45.enemiesState;
-      var score = _p45.score;
-      var hero = _p45.hero;
-      var opponent = _p45.opponent;
-      var _p46 = enemiesState;
-      var enemies = _p46.enemies;
-      var enemiesToReturn = A2($List.filter,
-      function (_p47) {
-         var _p48 = _p47;
-         var _p51 = _p48.y;
-         var _p50 = _p48.x;
-         var _p49 = _p48.rad;
-         return _U.cmp(hero.rad,_p49) > 0 ? _U.cmp(vecLen(A2(vecSub,{ctor: "_Tuple2",_0: hero.x,_1: hero.y},{ctor: "_Tuple2",_0: _p50,_1: _p51})),
-         hero.rad + _p49) > 0 && _U.cmp(vecLen(A2(vecSub,{ctor: "_Tuple2",_0: opponent.x,_1: opponent.y},{ctor: "_Tuple2",_0: _p50,_1: _p51})),
-         opponent.rad + _p49) > 0 : true;
-      },
-      enemies);
-      var damageAgainstPlayer = A2(getListOfCollidingEnemies,hero,enemiesToReturn);
-      var isCollided = A2(isPlayerCollided,hero,enemies);
-      return _U.update(game,
-      {hero: _U.update(hero,
-      {rad: _U.eq($List.length(enemies),$List.length(enemiesToReturn)) ? hero.rad : hero.rad + 5.0e-2,color: isCollided ? $Color.red : heroColor})
-      ,opponent: _U.update(opponent,
-      {rad: _U.eq($List.length(enemies),$List.length(enemiesToReturn)) ? opponent.rad : opponent.rad + 5.0e-2,color: isCollided ? $Color.red : opponentColor})
-      ,score: $Basics.toFloat($Basics.floor(score + $Basics.toFloat($List.length(enemies)) - ($Basics.toFloat($List.length(enemiesToReturn)) + $Basics.toFloat($List.length(damageAgainstPlayer)) / 100)))
-      ,enemiesState: _U.update(enemiesState,{enemies: enemiesToReturn})});
-   };
-   var update = F2(function (_p52,game) {
-      var _p53 = _p52;
-      return A2(selectView,
-      _p53._2,
-      A2(updateName,_p53._1,detectCollision(A2(updatePosition,_p53._0.dt,A3(newVelocity,_p53._0.h,_p53._0.o,updateEnemies(game))))));
+   var gameState = {opponent: $InitialState.opponent
+                   ,hero: $InitialState.hero
+                   ,enemiesState: $Enemies.initialEnemies
+                   ,score: 0
+                   ,name: $Graphics$Input$Field.noContent
+                   ,view: $Views.PlayerNameForm
+                   ,theta: $Animation.$static(0)
+                   ,r: $Animation.$static(0)
+                   ,clock: 0};
+   var selectView = F2(function (action,game) {
+      var _p19 = action;
+      switch (_p19.ctor)
+      {case "NoOp": return _U.update(game,{view: $Views.PlayerNameForm});
+         case "SubmitName": return _U.update(game,{view: $Views.GameView});
+         default: return _U.update(gameState,{view: $Views.PlayerNameForm,name: game.name});}
    });
-   var main = A3($Signal.map2,router,$Window.dimensions,A3($Signal.foldp,update,gameState,$Inputs.input));
-   var response = Elm.Native.Task.make(_elm).perform(A2($Task.andThen,$Outputs.socket,A2($SocketIO.on,"OPPONENT_UPDATE",$Inputs.responses.address)));
+   var updateEnemies = function (game) {
+      var _p20 = game;
+      var enemiesState = _p20.enemiesState;
+      var hero = _p20.hero;
+      var isEndOfRound = _U.cmp($List.length(enemiesState.enemies),5) < 1;
+      var _p21 = isEndOfRound;
+      if (_p21 === true) {
+            return _U.update(game,
+            {enemiesState: A3($Enemies.getEnemies,30,{ctor: "_Tuple2",_0: 4,_1: hero.rad + 2.5},enemiesState),theta: gameState.theta,r: gameState.r});
+         } else {
+            return game;
+         }
+   };
+   var update = F2(function (_p22,game) {
+      var _p23 = _p22;
+      var _p24 = _p23._0;
+      return A2(selectView,
+      _p23._4,
+      A2(updateName,
+      _p23._3,
+      A2(triggerAnimationIfCollision,
+      _p24,
+      detectCollision(A2(updatePosition,_p24,A3(newVelocity,_p23._1,_p23._2.o,updateEnemies(A2(updateClock,_p24,game))))))));
+   });
+   var main = A3($Signal.map2,$Views.router,$Window.dimensions,A3($Signal.foldp,update,gameState,$Inputs.input));
+   var Game = F9(function (a,b,c,d,e,f,g,h,i) {    return {hero: a,opponent: b,enemiesState: c,score: d,name: e,view: f,theta: g,r: h,clock: i};});
    return _elm.StarShapes.values = {_op: _op
-                                   ,vecLen: vecLen
-                                   ,vecSub: vecSub
-                                   ,Model: Model
-                                   ,textStyle: textStyle
-                                   ,heroColor: heroColor
-                                   ,opponentColor: opponentColor
-                                   ,backgroundPos: backgroundPos
-                                   ,hero: hero
-                                   ,opponent: opponent
-                                   ,PlayerNameForm: PlayerNameForm
-                                   ,GameView: GameView
                                    ,Game: Game
                                    ,gameState: gameState
+                                   ,main: main
                                    ,update: update
+                                   ,triggerAnimationIfCollision: triggerAnimationIfCollision
+                                   ,selectView: selectView
                                    ,newVelocity: newVelocity
                                    ,updateEnemies: updateEnemies
                                    ,updateHeroPos: updateHeroPos
                                    ,updatePosition: updatePosition
                                    ,getListOfCollidingEnemies: getListOfCollidingEnemies
-                                   ,isPlayerCollided: isPlayerCollided
                                    ,detectCollision: detectCollision
                                    ,updateName: updateName
-                                   ,selectView: selectView
-                                   ,inputNameView: inputNameView
-                                   ,router: router
-                                   ,gameView: gameView
-                                   ,main: main};
+                                   ,updateClock: updateClock};
 };</script></head><body><script type="text/javascript">Elm.fullscreen(Elm.StarShapes)</script></body></html>
