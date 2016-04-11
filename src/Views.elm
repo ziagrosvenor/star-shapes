@@ -72,7 +72,7 @@ enemyForm hero {color, rad, x, y} =
 enemyForms hero enemies =
   map (enemyForm hero) enemies
 
-quitButton = move ( 290, -200 ) 
+quitButton = move ( 520, -330 ) 
   (toForm (button (Signal.message actionsMailbox.address Quit) "QUIT"))
 
 inputNameView (w, h) {name} =

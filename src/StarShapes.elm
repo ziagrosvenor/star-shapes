@@ -144,7 +144,7 @@ updateEnemies game =
       True ->
         {
           game |
-            enemiesState = (getEnemies 30 (4, hero.rad + 2.5) enemiesState),
+            enemiesState = (getEnemies 40 (4, hero.rad + 4.5) enemiesState),
             theta = gameState.theta,
             r = gameState.r
         }

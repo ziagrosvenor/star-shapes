@@ -1,7 +1,7 @@
 module Config (..) where
 
-areaW = 700
-areaH = 450
+areaW = 1200
+areaH = 720
 serverUrl = "https://star-shapes.herokuapp.com"
 enemySpeed = 200
 backgroundImageUrl = "./stars-bg.png"

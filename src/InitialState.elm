@@ -10,11 +10,11 @@ opponentColor = purple
 
 hero : Model
 hero =
-  Model 0 0 0 0 40 heroColor
+  Model 0 0 0 0 70 heroColor
 
 opponent : Model
 opponent  =
-  Model 0 0 0 0 40 opponentColor
+  Model 0 0 0 0 70 opponentColor
 
 enemiesState = {
   enemies = [
