@@ -15,10 +15,12 @@ The game is [avaiable to play on this URL](https://star-shapes.herokuapp.com/ "S
 
 ### Todo
 
-- Show loading screen when waiting for a second player.
-- Show a game over screen.
-- Refactor the server side update loop.
+
+- User chooses colour of their player shape
 - Handle touch events for a mobile version of the game.
-- Show top scores screen.
 - Use sprites.
+- Show loading screen when waiting for a second player.
+- Refactor the server side update loop.
 - Show duration of gameplay in seconds/milliseconds.
+- Show top scores screen.
+- Show a game over screen.
